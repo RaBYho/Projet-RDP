@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+    html,
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Scrollbars masquées (esthétique workbench) */
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
+    * {
+        scrollbar-width: none;
+    }
+
+    /* Reset main pour composants qui collent aux bords */
+    main> :first-child {
+        margin-top: 0 !important;
+    }
+
+    main> :last-child {
+        margin-bottom: 0 !important;
+    }
+}
+
+@layer utilities {
+
+    /* Classe utilitaire pour forcer les chiffres tabulaires (vecteurs, compteurs) */
+    .tnum {
+        font-variant-numeric: tabular-nums;
+    }
+}
