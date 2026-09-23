@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>Carrefour Intelligent - Réseau de Petri</title><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      "colors": {
+        "surface-dim": "#cbdbf5",
+        "surface-container": "#e5eeff",
+        "tertiary-fixed-dim": "#ffb77d",
+        "on-tertiary-container": "#ffede1",
+        "on-tertiary": "#ffffff",
+        "surface-container-high": "#dce9ff",
+        "inverse-on-surface": "#eaf1ff",
+        "secondary": "#006c4a",
+        "on-primary-fixed": "#00174b",
+        "surface-variant": "#d3e4fe",
+        "secondary-fixed": "#85f8c4",
+        "outline": "#737686",
+        "on-background": "#0b1c30",
+        "on-secondary-fixed-variant": "#005137",
+        "inverse-surface": "#213145",
+        "on-secondary-container": "#00714e",
+        "on-surface-variant": "#434655",
+        "on-surface": "#0b1c30",
+        "on-secondary": "#ffffff",
+        "error": "#ba1a1a",
+        "secondary-fixed-dim": "#68dba9",
+        "primary-fixed": "#dbe1ff",
+        "surface-bright": "#f8f9ff",
+        "primary-fixed-dim": "#b4c5ff",
+        "surface-container-lowest": "#ffffff",
+        "error-container": "#ffdad6",
+        "on-tertiary-fixed-variant": "#6e3900",
+        "tertiary-fixed": "#ffdcc3",
+        "on-error": "#ffffff",
+        "surface": "#f8f9ff",
+        "tertiary-container": "#a65900",
+        "primary": "#004ac6",
+        "outline-variant": "#c3c6d7",
+        "on-primary-fixed-variant": "#003ea8",
+        "on-error-container": "#93000a",
+        "on-primary": "#ffffff",
+        "on-tertiary-fixed": "#2f1500",
+        "on-primary-container": "#eeefff",
+        "surface-tint": "#0053db",
+        "inverse-primary": "#b4c5ff",
+        "surface-container-highest": "#d3e4fe",
+        "background": "#f8f9ff",
+        "surface-container-low": "#eff4ff",
+        "on-secondary-fixed": "#002114",
+        "tertiary": "#824500",
+        "secondary-container": "#82f5c1",
+        "primary-container": "#2563eb"
+      },
+      "borderRadius": {
+        "DEFAULT": "0.125rem",
+        "lg": "0.25rem",
+        "xl": "0.5rem",
+        "full": "0.75rem"
+      },
+      "spacing": {
+        "space-xl": "1.5rem",
+        "space-sm": "0.5rem",
+        "gutter": "1rem",
+        "margin": "1.5rem",
+        "space-2xl": "2rem",
+        "gutter-dense": "0.5rem",
+        "space-lg": "1rem",
+        "space-md": "0.75rem",
+        "space-xs": "0.25rem"
+      },
+      "fontFamily": {
+        "headline-sm": ["Geist"],
+        "headline-lg": ["Geist"],
+        "display": ["Geist"],
+        "body-lg": ["Geist"],
+        "body-md": ["Geist"],
+        "label-md": ["Geist"],
+        "code-lg": ["JetBrains Mono"],
+        "code-sm": ["JetBrains Mono"],
+        "code-md": ["JetBrains Mono"],
+        "body-sm": ["Geist"],
+        "badge-mono": ["JetBrains Mono"],
+        "label-sm": ["Geist"],
+        "headline-md": ["Geist"]
+      },
+      "fontSize": {
+        "headline-sm": ["15px", {"lineHeight": "20px", "fontWeight": "600"}],
+        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
+        "display": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+        "body-lg": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+        "body-md": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+        "label-md": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+        "code-lg": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+        "code-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+        "code-md": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+        "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+        "badge-mono": ["10px", {"lineHeight": "12px", "letterSpacing": "0.04em", "fontWeight": "600"}],
+        "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+        "headline-md": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+      }
+    }
+  }
+}</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md shrink-0"><div class="flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-high text-primary"><span class="material-symbols-outlined text-[20px]">traffic</span></div><div class="flex items-baseline gap-space-xs"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Carrefour Intelligent</span><span class="font-badge-mono text-badge-mono uppercase px-space-xs py-0.5 rounded bg-surface-container-high text-primary">V2.4 LTS</span></div></div><nav class="flex items-center p-1 rounded-lg bg-surface-container-low" data-active-classes="bg-primary-container text-on-primary font-label-md text-label-md"><a class="px-space-md py-space-xs rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="schema-petri" href="#">Schéma Petri</a><a class="px-space-md py-space-xs rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="simulation-2d" href="#">Simulation 2D</a></nav><div class="flex items-center gap-space-md shrink-0"><div class="hidden xl:flex items-center p-0.5 rounded-lg bg-surface-container-low"><button class="px-space-sm py-1 rounded font-code-sm text-code-sm bg-surface-container-lowest text-primary shadow-[0_1px_3px_rgba(0,0,0,0.04)]" type="button">Vue Formelle</button><button class="px-space-sm py-1 rounded font-code-sm text-code-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">Vue Simplifiée</button></div><div class="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-secondary-fixed/30 text-on-secondary-container"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-badge-mono text-badge-mono uppercase font-semibold">60 HZ ACTIF</span></div><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-low"><span class="font-code-sm text-code-sm text-on-surface-variant">t =</span><span class="font-code-md text-code-md font-semibold text-primary">142.4s</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 pb-20 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<!-- Keyframe shimmer definition embedded safely -->
+<svg aria-hidden="true" class="sr-only">
+<defs>
+<lineargradient id="shimmer-grad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#cbd5e1" stop-opacity="0.3"></stop>
+<stop offset="50%" stop-color="#f8fafc" stop-opacity="0.9"></stop>
+<stop offset="100%" stop-color="#cbd5e1" stop-opacity="0.3"></stop>
+<animate attributename="x1" dur="1.8s" from="-100%" repeatcount="indefinite" to="100%"></animate>
+<animate attributename="x2" dur="1.8s" from="0%" repeatcount="indefinite" to="200%"></animate>
+</lineargradient>
+<lineargradient id="edge-flow" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#94a3b8" stop-opacity="0.25"></stop>
+<stop offset="50%" stop-color="#2563eb" stop-opacity="0.85"></stop>
+<stop offset="100%" stop-color="#94a3b8" stop-opacity="0.25"></stop>
+<animate attributename="x1" dur="2.4s" from="0%" repeatcount="indefinite" to="100%"></animate>
+</lineargradient>
+<pattern height="20" id="dot-grid" patternunits="userSpaceOnUse" width="20" x="0" y="0">
+<circle cx="2" cy="2" fill="#cbd5e1" fill-opacity="0.4" r="1"></circle>
+</pattern>
+</defs>
+</svg>
+<style>
+    @keyframes techShimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+    .skeleton-shimmer {
+      position: relative;
+      overflow: hidden;
+      background-color: #e2e8f0;
+    }
+    .skeleton-shimmer::after {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      transform: translateX(-100%);
+      background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.65) 50%, rgba(255, 255, 255, 0) 100%);
+      animation: techShimmer 1.8s infinite;
+      content: '';
+    }
+    @keyframes pulseRing {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .animate-ring {
+      animation: pulseRing 2.6s ease-in-out infinite;
+    }
+  </style>
+<!-- 1. BANDEAU SUPÉRIEUR D'INITIALISATION ANALYTIQUE -->
+<section class="w-full px-gutter pt-space-md pb-space-sm bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
+<!-- Statut et progression textuelle -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="inline-flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-primary-fixed text-on-primary-fixed shadow-sm">
+<span class="w-2.5 h-2.5 rounded-full bg-primary animate-ping"></span>
+<span class="font-badge-mono text-badge-mono tracking-wider font-semibold uppercase">INITIALISATION RÉSEAU DE PETRI EN COURS</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">Compilation de la matrice d'incidence W et allocation des places Pᵢ...</span>
+<span class="font-code-md text-code-md text-primary font-bold">74.2%</span>
+</div>
+</div>
+<!-- Métriques synthétiques skeleton -->
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm">
+<span class="font-medium text-outline">Places |P| :</span>
+<div class="w-7 h-3 rounded skeleton-shimmer"></div>
+</div>
+<div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm">
+<span class="font-medium text-outline">Transitions |T| :</span>
+<div class="w-7 h-3 rounded skeleton-shimmer"></div>
+</div>
+<div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm">
+<span class="font-medium text-outline">Jetons initiaux M₀ :</span>
+<div class="w-8 h-3 rounded skeleton-shimmer"></div>
+</div>
+</div>
+</div>
+<!-- Barre de progression horizontale animée -->
+<div class="relative w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="absolute top-0 bottom-0 left-0 w-3/4 bg-primary-container rounded-full overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-surface-container-lowest to-transparent opacity-60 animate-[techShimmer_1.5s_infinite]"></div>
+</div>
+</div>
+<!-- Sélecteurs de couches et filtres d'inspection skeleton -->
+<div class="flex items-center justify-between pt-1 overflow-x-auto">
+<div class="flex items-center gap-space-xs shrink-0">
+<span class="font-badge-mono text-badge-mono text-outline uppercase pr-1">Filtres de flux :</span>
+<div class="px-space-md py-1 rounded-lg bg-surface-container text-primary font-code-sm text-code-sm font-semibold shadow-sm flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span>Tous les flux</span>
+</div>
+<div class="px-space-md py-1 rounded-lg bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 opacity-70">
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+<span>Trafic Principal NS/EO</span>
+</div>
+<div class="px-space-md py-1 rounded-lg bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 opacity-70">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>Bus Prioritaire RFID</span>
+</div>
+<div class="px-space-md py-1 rounded-lg bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 opacity-70">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span>SAMU / Véhicule Urgence</span>
+</div>
+<div class="px-space-md py-1 rounded-lg bg-surface-container-low text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1.5 opacity-70">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Traversées Piétons</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<div class="w-24 h-5 rounded skeleton-shimmer"></div>
+<div class="w-16 h-5 rounded skeleton-shimmer"></div>
+</div>
+</div>
+</section>
+<!-- 2. ZONE CENTRALE SPLIT-CANVAS (GRAPHE PETRI SKELETON + INSPECTEUR LATÉRAL) -->
+<div class="w-full p-space-md flex flex-col lg:flex-row gap-space-md items-start">
+<!-- GAUCHE : CANEVAS GRAPHES PETRI SQUELETTE -->
+<div class="flex-1 w-full bg-surface-container-lowest rounded-xl shadow-md flex flex-col overflow-hidden relative min-h-[640px]">
+<!-- En-tête de carte Petri -->
+<div class="px-space-lg py-space-sm bg-surface-container-lowest shadow-sm flex items-center justify-between gap-space-md z-10">
+<div class="flex items-center gap-space-md">
+<div class="w-6 h-6 rounded bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px]">account_tree</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="w-72 h-4 rounded skeleton-shimmer"></div>
+<div class="flex items-center gap-space-xs">
+<span class="font-code-sm text-code-sm text-outline">G = (P, T, Pre, Post) • Synchronisation stochastique continue</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container font-badge-mono text-badge-mono text-primary font-bold">MODE : FORMEL M(P)</span>
+<div class="w-20 h-6 rounded skeleton-shimmer"></div>
+</div>
+</div>
+<!-- Canevas interactif vectoriel / Dot Grid technique -->
+<div class="relative w-full flex-1 min-h-[540px] flex items-center justify-center bg-surface overflow-hidden">
+<!-- Fond Grille Dot-Grid SVG -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<rect fill="url(#dot-grid)" height="100%" width="100%"></rect>
+<!-- Lignes directrices de coordonnées orthogonales (hairlines) -->
+<line stroke="#e2e8f0" stroke-dasharray="4,4" stroke-width="1" x1="0" x2="100%" y1="20%" y2="20%"></line>
+<line stroke="#cbd5e1" stroke-dasharray="2,4" stroke-width="1" x1="0" x2="100%" y1="50%" y2="50%"></line>
+<line stroke="#e2e8f0" stroke-dasharray="4,4" stroke-width="1" x1="0" x2="100%" y1="80%" y2="80%"></line>
+<line stroke="#e2e8f0" stroke-dasharray="4,4" stroke-width="1" x1="25%" x2="25%" y1="0" y2="100%"></line>
+<line stroke="#cbd5e1" stroke-dasharray="2,4" stroke-width="1" x1="50%" x2="50%" y1="0" y2="100%"></line>
+<line stroke="#e2e8f0" stroke-dasharray="4,4" stroke-width="1" x1="75%" x2="75%" y1="0" y2="100%"></line>
+<!-- Arcs orientés du réseau de Petri (Edges/Arcs) -->
+<!-- Connexions Flux NS -->
+<path class="animate-pulse" d="M 120 140 C 180 140, 180 180, 230 180" fill="none" stroke="#94a3b8" stroke-dasharray="4,4" stroke-width="2"></path>
+<polygon fill="#94a3b8" points="234,180 226,176 226,184"></polygon>
+<path d="M 270 180 C 330 180, 330 140, 390 140" fill="none" stroke="#94a3b8" stroke-dasharray="4,4" stroke-width="2"></path>
+<polygon fill="#94a3b8" points="394,140 386,136 386,144"></polygon>
+<path d="M 390 140 C 450 140, 450 200, 510 200" fill="none" stroke="#94a3b8" stroke-dasharray="3,3" stroke-width="1.5"></path>
+<polygon fill="#94a3b8" points="514,200 506,196 506,204"></polygon>
+<!-- Boucle de conflit & Exclusion mutuelle C1 -->
+<path d="M 390 140 C 420 270, 350 310, 250 290" fill="none" stroke="url(#edge-flow)" stroke-dasharray="5,3" stroke-width="2"></path>
+<!-- Connexions Flux EO -->
+<path d="M 120 380 C 180 380, 180 340, 230 340" fill="none" stroke="#94a3b8" stroke-dasharray="4,4" stroke-width="2"></path>
+<polygon fill="#94a3b8" points="234,340 226,336 226,344"></polygon>
+<path d="M 270 340 C 330 340, 330 380, 390 380" fill="none" stroke="#94a3b8" stroke-dasharray="4,4" stroke-width="2"></path>
+<polygon fill="#94a3b8" points="394,380 386,376 386,384"></polygon>
+<!-- Connexions Priorité Bus & SAMU -->
+<path d="M 550 130 C 620 130, 640 220, 710 220" fill="none" stroke="#2563eb" stroke-dasharray="3,3" stroke-opacity="0.5" stroke-width="2"></path>
+<polygon fill="#2563eb" points="714,220 706,216 706,224"></polygon>
+<path d="M 550 390 C 620 390, 640 300, 710 300" fill="none" stroke="#ba1a1a" stroke-dasharray="4,4" stroke-opacity="0.4" stroke-width="2"></path>
+<polygon fill="#ba1a1a" points="714,300 706,296 706,304"></polygon>
+<!-- Places fantômes (P) SVG -->
+<!-- P1 : Feu Vert NS -->
+<g transform="translate(100, 140)">
+<circle cx="0" cy="0" fill="#f8fafc" r="26" stroke="#94a3b8" stroke-dasharray="4,2" stroke-width="2"></circle>
+<circle class="animate-ping" cx="0" cy="0" fill="#2563eb" opacity="0.4" r="8"></circle>
+<circle cx="0" cy="0" fill="#2563eb" r="6"></circle>
+<text fill="#475569" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="38">P₁: Feux_NS_Vert</text>
+</g>
+<!-- P2 : Feu Rouge NS -->
+<g transform="translate(390, 140)">
+<circle cx="0" cy="0" fill="#f8fafc" r="26" stroke="#94a3b8" stroke-dasharray="4,2" stroke-width="2"></circle>
+<circle cx="-5" cy="0" fill="#94a3b8" r="4"></circle>
+<circle cx="5" cy="0" fill="#94a3b8" r="4"></circle>
+<text fill="#475569" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="38">P₂: Feux_NS_Rouge</text>
+</g>
+<!-- P3 : Demande Bus Approche -->
+<g transform="translate(530, 130)">
+<circle cx="0" cy="0" fill="#f8fafc" r="24" stroke="#006c4a" stroke-dasharray="3,3" stroke-width="2"></circle>
+<circle cx="0" cy="0" fill="#006c4a" r="5"></circle>
+<text fill="#006c4a" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="36">P₃: Bus_Detect</text>
+</g>
+<!-- P4 : Feu Vert EO -->
+<g transform="translate(100, 380)">
+<circle cx="0" cy="0" fill="#f8fafc" r="26" stroke="#94a3b8" stroke-dasharray="4,2" stroke-width="2"></circle>
+<circle cx="0" cy="0" fill="#94a3b8" r="6"></circle>
+<text fill="#475569" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="38">P₄: Feux_EO_Vert</text>
+</g>
+<!-- P5 : Feu Rouge EO -->
+<g transform="translate(390, 380)">
+<circle cx="0" cy="0" fill="#f8fafc" r="26" stroke="#94a3b8" stroke-dasharray="4,2" stroke-width="2"></circle>
+<circle cx="0" cy="0" fill="#2563eb" r="6"></circle>
+<text fill="#475569" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="38">P₅: Feux_EO_Rouge</text>
+</g>
+<!-- P6 : Préemption SAMU Actif -->
+<g transform="translate(530, 390)">
+<circle cx="0" cy="0" fill="#f8fafc" r="24" stroke="#ba1a1a" stroke-dasharray="2,3" stroke-width="2"></circle>
+<text fill="#ba1a1a" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="36">P₆: SAMU_Balise</text>
+</g>
+<!-- P7 : Verrou Carrefour (Exclusion) -->
+<g transform="translate(250, 260)">
+<circle cx="0" cy="0" fill="#ffffff" r="30" stroke="#2563eb" stroke-width="2"></circle>
+<circle cx="0" cy="0" fill="#2563eb" r="7"></circle>
+<text fill="#004ac6" font-family="JetBrains Mono" font-size="11" font-weight="700" text-anchor="middle" x="0" y="42">P_MUTEX: ZoneCarrefour</text>
+</g>
+<!-- Transitions fantômes (T) SVG -->
+<!-- T1: Déclenchement Orange/Rouge NS -->
+<g transform="translate(250, 180)">
+<rect class="animate-pulse" fill="#cbd5e1" height="44" rx="2" width="12" x="-6" y="-22"></rect>
+<text fill="#64748b" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="-28">T₁: Com_NS_EO</text>
+</g>
+<!-- T2: Dégagement Zone Centrale -->
+<g transform="translate(250, 340)">
+<rect fill="#cbd5e1" height="44" rx="2" width="12" x="-6" y="-22"></rect>
+<text fill="#64748b" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="34">T₂: Com_EO_NS</text>
+</g>
+<!-- T3: Autorisation Traversée Piétonne -->
+<g transform="translate(720, 260)">
+<rect fill="#94a3b8" height="48" rx="2" width="12" x="-6" y="-24"></rect>
+<text fill="#475569" font-family="JetBrains Mono" font-size="10" font-weight="600" text-anchor="middle" x="0" y="-30">T₃: Phase_Pietons</text>
+</g>
+</svg>
+<!-- CARTE CENTRALE FLOTTANTE DE RÉSOLUTION MATHÉMATIQUE -->
+<div class="relative z-20 max-w-md w-full mx-4 p-space-lg rounded-xl bg-surface-container-lowest/95 backdrop-blur-md shadow-xl flex flex-col items-center text-center gap-space-sm">
+<div class="relative w-14 h-14 rounded-2xl bg-surface-container-high flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-[32px] animate-spin" style="animation-duration: 4s;">sync</span>
+<div class="absolute -inset-1 rounded-2xl border-2 border-primary/30 animate-ring"></div>
+</div>
+<div class="flex flex-col gap-1 items-center">
+<h3 class="font-headline-md text-headline-md text-on-surface">Résolution du graphe d'accessibilité</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-xs">
+              Vérification formelle de la vivacité L4, conservation des jetons et absence stricte d'interblocage (∅-deadlock).
+            </p>
+</div>
+<div class="w-full flex flex-col gap-1.5 pt-2">
+<div class="flex items-center justify-between font-code-sm text-code-sm text-outline">
+<span>Construction de la matrice W⁺ et W⁻</span>
+<span class="text-primary font-semibold">15 / 15 Places</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden relative">
+<div class="h-full bg-primary rounded-full skeleton-shimmer" style="width: 78%;"></div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm pt-1">
+<span class="inline-flex items-center gap-1 font-badge-mono text-badge-mono uppercase text-secondary">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+              Propriété d'invariance vérifiée
+            </span>
+</div>
+</div>
+</div>
+<!-- Légende technique skeleton en bas de canvas -->
+<div class="px-space-lg py-space-sm bg-surface-container-low shadow-sm flex flex-wrap items-center justify-between gap-space-sm z-10">
+<div class="flex flex-wrap items-center gap-space-md">
+<div class="flex items-center gap-2">
+<div class="w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-primary flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface">Place Pᵢ (État local &amp; files)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-4 rounded bg-outline"></div>
+<span class="font-code-sm text-code-sm text-on-surface">Transition Tⱼ (Franchissement)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-5 h-0.5 bg-outline-variant"></div>
+<span class="font-code-sm text-code-sm text-on-surface">Arc pondéré (Pre/Post)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2.5 h-2.5 rounded-full bg-primary-container"></div>
+<span class="font-code-sm text-code-sm text-on-surface">Jeton actif (Marquage)</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs font-code-sm text-code-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[15px] text-primary">analytics</span>
+<span>Synthèse Petri-Net v2.4</span>
+</div>
+</div>
+</div>
+<!-- DROITE : PANNEAU D'INSPECTION MATHÉMATIQUE & FORMELLE (340px) -->
+<aside class="w-full lg:w-[350px] shrink-0 flex flex-col gap-space-md">
+<!-- CARTE 1 : VECTEUR DYNAMIQUE M(t) -->
+<div class="p-space-lg rounded-xl bg-surface-container-lowest shadow-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-primary">data_array</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Vecteur Dynamique M(t)</h4>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-surface-container font-badge-mono text-badge-mono text-primary font-bold">dim = 15</span>
+</div>
+<p class="font-code-sm text-code-sm text-outline">
+          M(t) = [ P₁ P₂ P₃ ... P₁₅ ]ᵀ ∈ ℕ¹⁵
+        </p>
+<!-- Matrice squelette de jetons (Grille 15 places) -->
+<div class="grid grid-cols-5 gap-2 pt-1">
+<!-- P1 -->
+<div class="p-1.5 rounded-lg bg-surface-container flex flex-col items-center gap-1 shadow-sm">
+<span class="font-badge-mono text-badge-mono text-primary font-bold">P₁</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P2 -->
+<div class="p-1.5 rounded-lg bg-surface-container flex flex-col items-center gap-1 shadow-sm">
+<span class="font-badge-mono text-badge-mono text-primary font-bold">P₂</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P3 -->
+<div class="p-1.5 rounded-lg bg-surface-container flex flex-col items-center gap-1 shadow-sm">
+<span class="font-badge-mono text-badge-mono text-primary font-bold">P₃</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P4 -->
+<div class="p-1.5 rounded-lg bg-surface-container flex flex-col items-center gap-1 shadow-sm">
+<span class="font-badge-mono text-badge-mono text-primary font-bold">P₄</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P5 -->
+<div class="p-1.5 rounded-lg bg-surface-container flex flex-col items-center gap-1 shadow-sm">
+<span class="font-badge-mono text-badge-mono text-primary font-bold">P₅</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P6 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₆</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P7 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₇</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P8 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₈</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P9 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₉</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P10 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₁₀</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P11 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₁₁</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P12 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₁₂</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P13 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₁₃</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P14 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₁₄</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+<!-- P15 -->
+<div class="p-1.5 rounded-lg bg-surface-container-low flex flex-col items-center gap-1">
+<span class="font-badge-mono text-badge-mono text-outline font-medium">P₁₅</span>
+<div class="w-4 h-4 rounded skeleton-shimmer"></div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2">
+<div class="w-24 h-3 rounded skeleton-shimmer"></div>
+<div class="w-16 h-3 rounded skeleton-shimmer"></div>
+</div>
+</div>
+<!-- CARTE 2 : INVARIANTS & PROPRIÉTÉS FORMELLES -->
+<div class="p-space-lg rounded-xl bg-surface-container-lowest shadow-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-secondary">verified_user</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Invariants &amp; Propriétés</h4>
+</div>
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+</div>
+<div class="flex flex-col gap-space-xs pt-1">
+<!-- Invariant 1 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">C₁ : Exclusion Mutuelle</span>
+<span class="font-code-sm text-code-sm text-outline">M(Feu_NS_V) + M(Feu_EO_V) ≤ 1</span>
+</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-secondary-fixed/40 font-badge-mono text-badge-mono text-on-secondary-fixed-variant font-bold">VALIDE</span>
+</div>
+<!-- Invariant 2 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">C₂ : Sécurité Piétons</span>
+<span class="font-code-sm text-code-sm text-outline">M(Pieton_Traverse) ⇒ Conflit = 0</span>
+</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-secondary-fixed/40 font-badge-mono text-badge-mono text-on-secondary-fixed-variant font-bold">VALIDE</span>
+</div>
+<!-- Invariant 3 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-4 h-4 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-[13px] text-primary animate-spin">refresh</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">C₃ : Priorité Urgence</span>
+<span class="font-code-sm text-code-sm text-outline">t_reponse(SAMU) &lt; 2.5s</span>
+</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-primary-fixed font-badge-mono text-badge-mono text-primary font-bold animate-pulse">CALCUL...</span>
+</div>
+<!-- Invariant 4 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-4 h-4 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-[13px] text-outline">hourglass_empty</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">C₄ : Vivacité L4 (Pas de deadlock)</span>
+<span class="font-code-sm text-code-sm text-outline">∀ M ∈ R(M₀), ∃ σ / T_i ∈ σ</span>
+</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-surface-container font-badge-mono text-badge-mono text-outline font-bold">EN ATTENTE</span>
+</div>
+<!-- Invariant 5 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-4 h-4 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-[13px] text-outline">hourglass_empty</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">C₅ : 1-Bornage structurel</span>
+<span class="font-code-sm text-code-sm text-outline">∀ p ∈ P_feux, M(p) ≤ 1</span>
+</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-surface-container font-badge-mono text-badge-mono text-outline font-bold">EN ATTENTE</span>
+</div>
+</div>
+</div>
+<!-- CARTE 3 : JOURNAL DES TIRS FORMELS (SKELETON STREAM) -->
+<div class="p-space-lg rounded-xl bg-surface-container-lowest shadow-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-outline">terminal</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Journal des Tirs Formels</h4>
+</div>
+<span class="font-code-sm text-code-sm text-outline">FIFO Stream</span>
+</div>
+<div class="flex flex-col gap-2 pt-1 font-code-sm text-code-sm">
+<div class="flex items-center gap-2">
+<span class="text-outline">[00.000s]</span>
+<div class="w-44 h-3.5 rounded skeleton-shimmer"></div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-outline">[00.124s]</span>
+<div class="w-56 h-3.5 rounded skeleton-shimmer"></div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-outline">[00.418s]</span>
+<div class="w-48 h-3.5 rounded skeleton-shimmer"></div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-primary font-semibold">[ACTUEL]</span>
+<div class="w-52 h-3.5 rounded bg-primary-fixed skeleton-shimmer"></div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<!-- Script d'incrément réaliste de la jauge de chargement -->
+<script>
+    (function() {
+      let progress = 74.2;
+      const progressEl = document.querySelector('.text-primary.font-bold');
+      if (progressEl) {
+        const interval = setInterval(() => {
+          if (progress < 99.4) {
+            progress += (Math.random() * 2.2);
+            if (progress > 99.4) progress = 99.4;
+            progressEl.textContent = progress.toFixed(1) + '%';
+          } else {
+            clearInterval(interval);
+          }
+        }, 320);
+      }
+    })();
+  </script>
+</div></main><footer class="fixed bottom-0 left-0 right-0 z-50 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_-2px_10px_rgba(0,0,0,0.04)]"><div class="h-16 w-full px-gutter flex items-center justify-between gap-space-md overflow-x-auto"><div class="flex items-center gap-space-xs shrink-0"><span class="font-badge-mono text-badge-mono uppercase text-on-surface-variant px-space-xs">Injection :</span><button class="flex items-center gap-1 px-space-sm py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-on-surface transition-colors font-code-sm text-code-sm" type="button"><span class="material-symbols-outlined text-[16px] text-primary">south</span>+ Voiture NS</button><button class="flex items-center gap-1 px-space-sm py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-on-surface transition-colors font-code-sm text-code-sm" type="button"><span class="material-symbols-outlined text-[16px] text-primary">east</span>+ Voiture EO</button><button class="flex items-center gap-1 px-space-sm py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-on-surface transition-colors font-code-sm text-code-sm" type="button"><span class="material-symbols-outlined text-[16px] text-tertiary">directions_walk</span>Piéton</button><button class="flex items-center gap-1 px-space-sm py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-on-surface transition-colors font-code-sm text-code-sm" type="button"><span class="material-symbols-outlined text-[16px] text-primary">directions_bus</span>Bus prioritaire</button><button class="flex items-center gap-1 px-space-sm py-1.5 rounded-lg bg-error-container text-on-error-container hover:bg-error hover:text-on-error transition-colors font-code-sm text-code-sm font-semibold" type="button"><span class="material-symbols-outlined text-[16px]">warning</span>Urgence</button><button class="flex items-center gap-1 px-space-sm py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high hover:text-on-surface transition-colors font-code-sm text-code-sm" type="button"><span class="material-symbols-outlined text-[16px]">restart_alt</span>Reset M₀</button></div><div class="flex items-center gap-space-md shrink-0"><div class="flex items-center rounded-lg bg-surface-container-low p-0.5"><button class="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" title="Pas arrière" type="button"><span class="material-symbols-outlined text-[18px]">skip_previous</span></button><button class="px-space-md py-1.5 rounded bg-primary-container text-on-primary hover:bg-primary transition-colors flex items-center gap-1 font-label-md text-label-md" title="Exécution continue" type="button"><span class="material-symbols-outlined text-[18px]">play_arrow</span><span>Play</span></button><button class="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" title="Pas avant" type="button"><span class="material-symbols-outlined text-[18px]">skip_next</span></button></div><div class="flex items-center gap-space-xs bg-surface-container-low px-space-sm py-1 rounded-lg"><span class="material-symbols-outlined text-[16px] text-on-surface-variant">speed</span><input class="w-20 h-1.5 bg-surface-container-high rounded accent-primary-container cursor-pointer" max="5" min="0.1" step="0.1" type="range" value="1.0"/><span class="font-code-sm text-code-sm text-on-surface font-semibold w-8 text-right">1.0x</span></div></div></div></footer></body></html>
