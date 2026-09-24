@@ -4,7 +4,6 @@ import Header from './components/layout/Header.jsx';
 import ControlPanel from './components/layout/ControlPanel.jsx';
 import SchemaPetriPage from './pages/SchemaPetriPage.jsx';
 import Simulation2DPage from './pages/Simulation2DPage.jsx';
-import KitchenSinkPage from './pages/KitchenSinkPage.jsx';
 
 /**
  * AnimatedRoutes — enveloppe les <Routes> pour appliquer une animation
@@ -19,7 +18,6 @@ function AnimatedRoutes() {
         <Route path="/" element={<Navigate to="/schema" replace />} />
         <Route path="/schema" element={<SchemaPetriPage />} />
         <Route path="/simulation" element={<Simulation2DPage />} />
-        <Route path="/kitchen-sink" element={<KitchenSinkPage />} />
         <Route path="*" element={<Navigate to="/schema" replace />} />
       </Routes>
     </div>
@@ -32,11 +30,9 @@ export default function App() {
       <AppProviders>
         <div className="min-h-screen bg-surface text-ink font-sans">
           <Header />
-
           <main className="pt-16 pb-16 min-h-screen">
             <AnimatedRoutes />
           </main>
-
           <ControlPanel />
         </div>
       </AppProviders>

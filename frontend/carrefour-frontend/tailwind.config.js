@@ -147,6 +147,10 @@ export default {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(350%)" },
         },
+        slideInTop: {
+          "0%": { opacity: "0", transform: "translateY(-10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         fadeUp: "fadeUp 300ms ease-out both",
@@ -155,6 +159,7 @@ export default {
         shimmer: "shimmer 1.8s linear infinite",
         ring: "ring 2.4s ease-in-out infinite",
         indeterminate: "indeterminate 1.4s ease-in-out infinite",
+        slideInTop: "slideInTop 280ms cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
   },

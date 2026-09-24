@@ -2,27 +2,18 @@ import { NetworkProvider } from './NetworkContext.jsx';
 import { UiProvider } from './UiContext.jsx';
 
 /**
- * AppProviders — composition des providers de l'application.
+ * AppProviders — composition des providers.
  *
- * Ordre de montage :
- *   1. NetworkProvider  (état serveur — chargé au boot via useEffect)
- *   2. UiProvider       (état client — préférences UI)
+ * Ordre (v3) :
+ *   1. UiProvider      (outer, expose rate/isPlaying)
+ *   2. NetworkProvider (inner, peut lire useUi())
  *
- * Aucun des deux ne dépend de l'autre, mais on garde Network
- * en outer pour qu'un futur composant puisse lire le réseau ET
- * piloter l'UI sans ordre imposé.
- *
- * Usage dans App.jsx :
- *   <AppProviders>
- *     <Header />
- *     <main>…</main>
- *     <ControlPanel />
- *   </AppProviders>
+ * Nécessaire car NetworkProvider utilise le rate pour l'auto-play.
  */
 export default function AppProviders({ children }) {
   return (
-    <NetworkProvider>
-      <UiProvider>{children}</UiProvider>
-    </NetworkProvider>
+    <UiProvider>
+      <NetworkProvider>{children}</NetworkProvider>
+    </UiProvider>
   );
 }

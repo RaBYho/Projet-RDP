@@ -1,152 +1,125 @@
 /**
- * Layout du graphe Petri — positions fixes sur le canvas SVG.
+ * Layout du graphe Petri — positions fixes sur le canvas SVG (v3).
  *
- * IMPORTANT : ce fichier est PRÉSENTATIONNEL, pas métier.
- * L'API /network ne fournit pas de coordonnées. On les fixe ici,
- * extraites du mockup initial (Schema Petri, vue formelle).
+ * Canvas logique : 1080 × 680
  *
- * Convention :
- *   - Origine en haut à gauche (0, 0)
- *   - Axe x vers la droite
- *   - Axe y vers le bas
- *   - Canvas logique : 980 × 560 (scalé par preserveAspectRatio)
- *
- * Les positions sont centrées sur l'élément (pas son coin).
- *
- * Topologie spatiale :
- *   ┌──────────────────────────────────────────────────────┐
- *   │ File NS → ○─T1─○─T2─○─T3⤴  Bus: ○─T11─○─T12⤴        │
- *   │  P7       P1   P2  P3  P11   P12                     │
- *   │                                                       │
- *   │         [T7]─→ P15 (Timer) ←─[T8]                    │
- *   │                  ↑↓ T15/T16                          │
- *   │                                                       │
- *   │ File EO → ○─T4─○─T5─○─T6⤴  Piéton: ○─T9─○─T10⤴      │
- *   │  P8       P4   P5  P6     P9   P10                   │
- *   │                                                       │
- *   │              Urgence: ○─T13─○─T14⤴                    │
- *   │                        P13  P14                       │
- *   └──────────────────────────────────────────────────────┘
+ * Organisation en 5 zones :
+ *   ┌────────────┬──────────────────────┬──────────────┐
+ *   │  FILES     │   CYCLE DES FEUX     │   URGENCE    │
+ *   │  (gauche)  │      (centre)        │   (droite)   │
+ *   │            │                      │              │
+ *   │  P7   P8   │  P1→T1→P2→T2→P3→T3  │  P13_NS      │
+ *   │  P16  P17  │  P4→T4→P5→T5→P6→T6  │  P13_EO      │
+ *   │            │                      │              │
+ *   │            │   P15 (timer, hub)   │              │
+ *   ├────────────┴──────────────────────┴──────────────┤
+ *   │                PIÉTON (bas)                       │
+ *   │                P9 → T9 → P10 → T10                │
+ *   └───────────────────────────────────────────────────┘
  */
 
 /* ------------------------------------------------------------------ */
-/* Dimensions du canvas logique                                        */
+/* Dimensions du canvas                                                */
 /* ------------------------------------------------------------------ */
 export const VIEWBOX = {
-  width: 980,
-  height: 560,
+  width: 1080,
+  height: 680,
 };
 
 /* ------------------------------------------------------------------ */
-/* Rayons et dimensions des éléments                                   */
+/* Dimensions des éléments                                             */
 /* ------------------------------------------------------------------ */
-export const PLACE_RADIUS = 18; // rayon standard d'une place
-export const PLACE_RADIUS_HUB = 22; // place "hub" (P15 = timer central)
-export const TOKEN_RADIUS = 3; // rayon d'un jeton individuel
+export const PLACE_RADIUS = 18;
+export const PLACE_RADIUS_HUB = 22;
+export const TOKEN_RADIUS = 3;
 
-export const TRANSITION_WIDTH = 8; // largeur d'un rectangle de transition
-export const TRANSITION_HEIGHT = 30; // hauteur d'un rectangle de transition
+export const TRANSITION_WIDTH = 8;
+export const TRANSITION_HEIGHT = 30;
 
-/* Décalage vertical du label sous la place (en px) */
 export const PLACE_LABEL_OFFSET = 28;
 
 /* ------------------------------------------------------------------ */
-/* Positions des PLACES (P1 → P15)                                     */
+/* POSITIONS DES PLACES                                                */
 /* ------------------------------------------------------------------ */
 export const PLACE_POSITIONS = {
-  // Cycle NS (haut, gauche → droite)
-  P1: { x: 110, y: 120 }, // Feu NS vert
-  P2: { x: 270, y: 120 }, // Feu NS orange
-  P3: { x: 430, y: 120 }, // Feu NS rouge
+  /* ---- CYCLE DES FEUX NS (ligne haute, x croissant) ---- */
+  P1: { x: 360, y: 100 }, // Feu NS vert
+  P2: { x: 540, y: 100 }, // Feu NS orange
+  P3: { x: 720, y: 100 }, // Feu NS rouge
 
-  // Cycle EO (bas, gauche → droite)
-  P4: { x: 110, y: 400 }, // Feu EO vert
-  P5: { x: 270, y: 400 }, // Feu EO orange
-  P6: { x: 430, y: 400 }, // Feu EO rouge
+  /* ---- CYCLE DES FEUX EO (ligne basse) ---- */
+  P4: { x: 360, y: 340 }, // Feu EO vert
+  P5: { x: 540, y: 340 }, // Feu EO orange
+  P6: { x: 720, y: 340 }, // Feu EO rouge
 
-  // Files d'attente (bord gauche)
-  P7: { x: 100, y: 220 }, // File NS
-  P8: { x: 100, y: 310 }, // File EO
+  /* ---- HUB central (timer) ---- */
+  P15: { x: 540, y: 220 }, // Timer cycle
 
-  // Circuit piéton (milieu droit)
-  P9: { x: 630, y: 280 }, // Appel piéton
-  P10: { x: 790, y: 280 }, // Traversée piéton
+  /* ---- FILES D'ATTENTE (colonne gauche) ---- */
+  P7: { x: 100, y: 100 }, // File NS Nord  (↓)
+  P8: { x: 100, y: 220 }, // File EO Ouest (→)
+  P16: { x: 100, y: 340 }, // File NS Sud   (↑)
+  P17: { x: 100, y: 460 }, // File EO Est   (←)
 
-  // Circuit bus (haut droit)
-  P11: { x: 630, y: 140 }, // RFID bus
-  P12: { x: 790, y: 140 }, // Priorité bus active
+  /* ---- PIÉTON (bas, sous le cycle) ---- */
+  P9: { x: 360, y: 540 }, // Appel piéton
+  P10: { x: 540, y: 540 }, // Traversée piéton
 
-  // Circuit urgence (bas droit)
-  P13: { x: 630, y: 420 }, // Balise urgence
-  P14: { x: 790, y: 420 }, // Verrou urgence
-
-  // Hub central (timer)
-  P15: { x: 460, y: 260 }, // Timer cycle
+  /* ---- URGENCE (colonne droite) ---- */
+  P13_NS: { x: 900, y: 160 }, // Balise urgence NS
+  P14_NS: { x: 900, y: 260 }, // Préemption NS active
+  P13_EO: { x: 900, y: 400 }, // Balise urgence EO
+  P14_EO: { x: 900, y: 500 }, // Préemption EO active
 };
 
 /* ------------------------------------------------------------------ */
-/* Positions des TRANSITIONS (T1 → T16)                                */
+/* POSITIONS DES TRANSITIONS                                           */
 /* ------------------------------------------------------------------ */
 export const TRANSITION_POSITIONS = {
-  // Cycle NS
-  T1: { x: 190, y: 120 }, // NS vert → orange
-  T2: { x: 350, y: 120 }, // NS orange → rouge
-  T3: { x: 510, y: 120 }, // NS rouge → vert (boucle retour)
+  /* ---- Cycle NS : T1 (P1→P2), T2 (P2→P3), T3 (P3→P1) ---- */
+  T1: { x: 450, y: 100 },
+  T2: { x: 630, y: 100 },
+  T3: { x: 810, y: 100 }, // boucle retour P3 → P1
 
-  // Cycle EO
-  T4: { x: 190, y: 400 }, // EO vert → orange
-  T5: { x: 350, y: 400 }, // EO orange → rouge
-  T6: { x: 510, y: 400 }, // EO rouge → vert (boucle retour)
+  /* ---- Cycle EO : T4 (P4→P5), T5 (P5→P6), T6 (P6→P4) ---- */
+  T4: { x: 450, y: 340 },
+  T5: { x: 630, y: 340 },
+  T6: { x: 810, y: 340 }, // boucle retour P6 → P4
 
-  // Files d'attente → hub timer
-  T7: { x: 240, y: 200 }, // File NS → timer
-  T8: { x: 240, y: 320 }, // File EO → timer
+  /* ---- Timer (P15 hub) ---- */
+  T15: { x: 540, y: 150 }, // tick (au-dessus de P15)
+  T16: { x: 540, y: 290 }, // reset (en dessous de P15)
 
-  // Circuit piéton
-  T9: { x: 710, y: 280 }, // Appel piéton → traversée
-  T10: { x: 870, y: 280 }, // Fin traversée (retour)
+  /* ---- Files → timer ---- */
+  T7: { x: 220, y: 130 }, // File NS Nord → P15
+  T8: { x: 220, y: 220 }, // File EO Ouest → P15
+  T17: { x: 220, y: 340 }, // File NS Sud → P15
+  T18: { x: 220, y: 460 }, // File EO Est → P15
 
-  // Circuit bus
-  T11: { x: 710, y: 140 }, // Bus détecté → priorité active
-  T12: { x: 870, y: 140 }, // Fin priorité (retour)
+  /* ---- Piéton ---- */
+  T9: { x: 450, y: 540 }, // Appel → Traversée
+  T10: { x: 630, y: 540 }, // Fin traversée
 
-  // Circuit urgence
-  T13: { x: 710, y: 420 }, // Balise → verrou urgence
-  T14: { x: 870, y: 420 }, // Fin urgence (retour)
+  /* ---- Urgence NS ---- */
+  T13_NS: { x: 900, y: 210 }, // Balise NS → Préemption NS
+  T14_NS: { x: 1000, y: 210 }, // Fin préemption NS
 
-  // Hub central (timer)
-  T15: { x: 460, y: 200 }, // Tick timer (au-dessus de P15)
-  T16: { x: 460, y: 320 }, // Reset cycle NS (en dessous de P15)
+  /* ---- Urgence EO ---- */
+  T13_EO: { x: 900, y: 450 }, // Balise EO → Préemption EO
+  T14_EO: { x: 1000, y: 450 }, // Fin préemption EO
 };
 
 /* ------------------------------------------------------------------ */
-/* Helpers                                                             */
+/* HELPERS                                                             */
 /* ------------------------------------------------------------------ */
-
-/**
- * Retourne la position d'une place, ou `null` si inconnue.
- * @param {string} placeId
- * @returns {{x: number, y: number} | null}
- */
 export function getPlacePosition(placeId) {
   return PLACE_POSITIONS[placeId] ?? null;
 }
 
-/**
- * Retourne la position d'une transition, ou `null` si inconnue.
- * @param {string} transitionId
- * @returns {{x: number, y: number} | null}
- */
 export function getTransitionPosition(transitionId) {
   return TRANSITION_POSITIONS[transitionId] ?? null;
 }
 
-/**
- * Rayon applicable à une place donnée.
- * P15 (hub central) a un rayon plus grand pour signaler son rôle.
- * @param {string} placeId
- * @returns {number}
- */
 export function getPlaceRadius(placeId) {
   return placeId === "P15" ? PLACE_RADIUS_HUB : PLACE_RADIUS;
 }

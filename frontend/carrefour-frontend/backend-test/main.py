@@ -1,13 +1,21 @@
 """
-Backend de test — Carrefour Intelligent
-========================================
+Backend de test — Carrefour Intelligent (v3)
+=============================================
 
-Serveur FastAPI minimaliste qui implémente les 7 endpoints du contrat
-frontend. À utiliser UNIQUEMENT pour tester l'intégration pendant le
-développement — aucune logique de simulation formelle.
+Contrat v3 :
+  - 17 places (P1–P17, avec P13_NS/P13_EO/P14_NS/P14_EO)
+  - 18 transitions (T1–T18, avec T13_NS/T13_EO/T14_NS/T14_EO)
+  - 12 contraintes
+  - 9 événements d'injection
+  - Arcs inhibiteurs
+
+Changements vs v2 :
+  - Retrait du bus (P11, P12, T11, T12, C6)
+  - Urgence scindée en 2 axes (NS / EO)
+  - Fin d'urgence manuelle via fire T14_NS ou T14_EO
+  - Forçage du feu de l'axe urgence au vert
 
 Lancement :
-    pip install -r requirements.txt
     uvicorn main:app --reload --port 8000
 """
 
@@ -20,17 +28,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 
-# ============================================================
-# Configuration du serveur
-# ============================================================
-
 app = FastAPI(
     title="Carrefour Intelligent — Backend de test",
-    description="Mock API pour tester le frontend",
-    version="0.1.0",
+    description="Mock API v3 — 17 places, 18 transitions, 12 contraintes",
+    version="0.3.0",
 )
 
-# CORS permissif — utile en dev quand Vite tourne sur 5173.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,76 +46,113 @@ SERVER_START = time.time()
 
 
 # ============================================================
-# Modèle statique du réseau
+# Places (17)
 # ============================================================
 
 PLACES_DEF: List[Dict] = [
-    {"id": "P1",  "label": "Feu NS vert",         "category": "normal",   "capacity": 1},
-    {"id": "P2",  "label": "Feu NS orange",       "category": "normal",   "capacity": 1},
-    {"id": "P3",  "label": "Feu NS rouge",        "category": "normal",   "capacity": 1},
-    {"id": "P4",  "label": "Feu EO vert",         "category": "normal",   "capacity": 1},
-    {"id": "P5",  "label": "Feu EO orange",       "category": "normal",   "capacity": 1},
-    {"id": "P6",  "label": "Feu EO rouge",        "category": "normal",   "capacity": 1},
-    {"id": "P7",  "label": "File NS",             "category": "normal",   "capacity": 12},
-    {"id": "P8",  "label": "File EO",             "category": "normal",   "capacity": 12},
-    {"id": "P9",  "label": "Appel piéton",        "category": "pieton",   "capacity": 1},
-    {"id": "P10", "label": "Traversée piéton",    "category": "pieton",   "capacity": 1},
-    {"id": "P11", "label": "RFID bus",            "category": "bus",      "capacity": 1},
-    {"id": "P12", "label": "Priorité bus active", "category": "bus",      "capacity": 1},
-    {"id": "P13", "label": "Balise urgence",      "category": "urgence",  "capacity": 1},
-    {"id": "P14", "label": "Verrou urgence",      "category": "urgence",  "capacity": 1},
-    {"id": "P15", "label": "Timer cycle",         "category": "normal",   "capacity": 1},
+    # Cycle feux NS
+    {"id": "P1",  "label": "Feu NS vert",         "category": "normal",  "capacity": 1},
+    {"id": "P2",  "label": "Feu NS orange",       "category": "normal",  "capacity": 1},
+    {"id": "P3",  "label": "Feu NS rouge",        "category": "normal",  "capacity": 1},
+    # Cycle feux EO
+    {"id": "P4",  "label": "Feu EO vert",         "category": "normal",  "capacity": 1},
+    {"id": "P5",  "label": "Feu EO orange",       "category": "normal",  "capacity": 1},
+    {"id": "P6",  "label": "Feu EO rouge",        "category": "normal",  "capacity": 1},
+    # Files d'attente
+    {"id": "P7",  "label": "File NS Nord",        "category": "normal",  "capacity": 12},
+    {"id": "P8",  "label": "File EO Ouest",       "category": "normal",  "capacity": 12},
+    {"id": "P16", "label": "File NS Sud",         "category": "normal",  "capacity": 12},
+    {"id": "P17", "label": "File EO Est",         "category": "normal",  "capacity": 12},
+    # Piéton
+    {"id": "P9",  "label": "Appel piéton",        "category": "pieton",  "capacity": 1},
+    {"id": "P10", "label": "Traversée piéton",    "category": "pieton",  "capacity": 1},
+    # Urgence NS
+    {"id": "P13_NS", "label": "Balise urgence NS",     "category": "urgence", "capacity": 1},
+    {"id": "P14_NS", "label": "Préemption NS active",  "category": "urgence", "capacity": 1},
+    # Urgence EO
+    {"id": "P13_EO", "label": "Balise urgence EO",     "category": "urgence", "capacity": 1},
+    {"id": "P14_EO", "label": "Préemption EO active",  "category": "urgence", "capacity": 1},
+    # Timer
+    {"id": "P15", "label": "Timer cycle",         "category": "normal",  "capacity": 12},
 ]
 
+PLACE_BY_ID = {p["id"]: p for p in PLACES_DEF}
+
+
+# ============================================================
+# Transitions (18)
+# ============================================================
+# Champs :
+#   - inputs      : dict {place_id: weight}
+#   - outputs     : dict {place_id: weight}  (peut être vide pour T14_NS/T14_EO)
+#   - inhibitors  : list[place_id] (arcs inhibiteurs, désactivent la transition si M > 0)
+#   - special     : optionnel, comportement spécifique au tir
+
 TRANSITIONS_DEF: Dict[str, Dict] = {
-    "T1":  {"label": "NS vert → orange",   "category": "normal",
-            "inputs": {"P1": 1},  "outputs": {"P2": 1}},
-    "T2":  {"label": "NS orange → rouge",  "category": "normal",
-            "inputs": {"P2": 1},  "outputs": {"P3": 1}},
-    "T3":  {"label": "NS rouge → vert",    "category": "normal",
-            "inputs": {"P3": 1},  "outputs": {"P1": 1}},
-    "T4":  {"label": "EO vert → orange",   "category": "normal",
-            "inputs": {"P4": 1},  "outputs": {"P5": 1}},
-    "T5":  {"label": "EO orange → rouge",  "category": "normal",
-            "inputs": {"P5": 1},  "outputs": {"P6": 1}},
-    "T6":  {"label": "EO rouge → vert",    "category": "normal",
-            "inputs": {"P6": 1},  "outputs": {"P4": 1}},
-    "T7":  {"label": "File NS → passage",  "category": "normal",
-            "inputs": {"P7": 1},  "outputs": {"P15": 1}},
-    "T8":  {"label": "File EO → passage",  "category": "normal",
-            "inputs": {"P8": 1},  "outputs": {"P15": 1}},
-    "T9":  {"label": "Appel piéton",       "category": "pieton",
-            "inputs": {"P9": 1},  "outputs": {"P10": 1}},
-    "T10": {"label": "Fin traversée",      "category": "pieton",
-            "inputs": {"P10": 1}, "outputs": {"P9": 1}},
-    "T11": {"label": "Bus détecté",        "category": "bus",
-            "inputs": {"P11": 1}, "outputs": {"P12": 1}},
-    "T12": {"label": "Fin priorité bus",   "category": "bus",
-            "inputs": {"P12": 1}, "outputs": {"P11": 1}},
-    "T13": {"label": "Balise urgence",     "category": "urgence",
-            "inputs": {"P13": 1}, "outputs": {"P14": 1}},
-    "T14": {"label": "Fin urgence",        "category": "urgence",
-            "inputs": {"P14": 1}, "outputs": {"P13": 1}},
-    "T15": {"label": "Tick timer",         "category": "normal",
-            "inputs": {"P15": 1}, "outputs": {"P15": 1}},
-    "T16": {"label": "Reset cycle NS",     "category": "normal",
-            "inputs": {"P15": 1}, "outputs": {"P1": 1, "P6": 1}},
+    # ---- Cycle NS ----
+    "T1": {"label": "NS vert → orange",  "category": "normal",
+           "inputs": {"P1": 1}, "outputs": {"P2": 1}, "inhibitors": []},
+    "T2": {"label": "NS orange → rouge", "category": "normal",
+           "inputs": {"P2": 1}, "outputs": {"P3": 1}, "inhibitors": []},
+    "T3": {"label": "NS rouge → vert",   "category": "normal",
+           "inputs": {"P3": 1}, "outputs": {"P1": 1}, "inhibitors": []},
+    # ---- Cycle EO ----
+    "T4": {"label": "EO vert → orange",  "category": "normal",
+           "inputs": {"P4": 1}, "outputs": {"P5": 1}, "inhibitors": ["P14_NS"]},
+    "T5": {"label": "EO orange → rouge", "category": "normal",
+           "inputs": {"P5": 1}, "outputs": {"P6": 1}, "inhibitors": ["P14_NS"]},
+    "T6": {"label": "EO rouge → vert",   "category": "normal",
+           "inputs": {"P6": 1}, "outputs": {"P4": 1}, "inhibitors": ["P14_NS"]},
+    # ---- Files → timer ----
+    "T7":  {"label": "File NS Nord → passage",  "category": "normal",
+            "inputs": {"P7": 1},  "outputs": {"P15": 1}, "inhibitors": []},
+    "T8":  {"label": "File EO Ouest → passage", "category": "normal",
+            "inputs": {"P8": 1},  "outputs": {"P15": 1}, "inhibitors": []},
+    "T17": {"label": "File NS Sud → passage",   "category": "normal",
+            "inputs": {"P16": 1}, "outputs": {"P15": 1}, "inhibitors": []},
+    "T18": {"label": "File EO Est → passage",   "category": "normal",
+            "inputs": {"P17": 1}, "outputs": {"P15": 1}, "inhibitors": []},
+    # ---- Piéton ----
+    "T9":  {"label": "Appel piéton",   "category": "pieton",
+            "inputs": {"P9": 1},  "outputs": {"P10": 1}, "inhibitors": []},
+    "T10": {"label": "Fin traversée",  "category": "pieton",
+            "inputs": {"P10": 1}, "outputs": {"P9": 1},  "inhibitors": []},
+    # ---- Urgence NS ----
+    "T13_NS": {"label": "Urgence NS détectée", "category": "urgence",
+               "inputs": {"P13_NS": 1}, "outputs": {"P14_NS": 1},
+               "inhibitors": ["P14_EO", "P10"],
+               "special": "force_ns_green"},
+    "T14_NS": {"label": "Fin préemption NS",   "category": "urgence",
+               "inputs": {"P14_NS": 1}, "outputs": {}, "inhibitors": []},
+    # ---- Urgence EO ----
+    "T13_EO": {"label": "Urgence EO détectée", "category": "urgence",
+               "inputs": {"P13_EO": 1}, "outputs": {"P14_EO": 1},
+               "inhibitors": ["P14_NS", "P10"],
+               "special": "force_eo_green"},
+    "T14_EO": {"label": "Fin préemption EO",   "category": "urgence",
+               "inputs": {"P14_EO": 1}, "outputs": {}, "inhibitors": []},
+    # ---- Timer ----
+    "T15": {"label": "Tick timer",       "category": "normal",
+            "inputs": {"P15": 1}, "outputs": {"P15": 1}, "inhibitors": []},
+    "T16": {"label": "Reset cycle",      "category": "normal",
+            "inputs": {"P15": 1}, "outputs": {"P1": 1, "P6": 1}, "inhibitors": []},
 }
 
-# Marquage initial — total = 8 jetons (aligné sur le mockup).
+
+# Marquage initial — 8 jetons
 M0: Dict[str, int] = {
     "P1": 1, "P2": 0, "P3": 0,
     "P4": 0, "P5": 0, "P6": 1,
-    "P7": 3, "P8": 2,
+    "P7": 3, "P8": 2, "P16": 0, "P17": 0,
     "P9": 0, "P10": 0,
-    "P11": 0, "P12": 0,
-    "P13": 0, "P14": 0,
+    "P13_NS": 0, "P14_NS": 0,
+    "P13_EO": 0, "P14_EO": 0,
     "P15": 1,
 }
 
 
 # ============================================================
-# État mutable du serveur
+# État
 # ============================================================
 
 state = {
@@ -122,7 +162,7 @@ state = {
 
 
 # ============================================================
-# Helpers
+# Helpers — logique de tir
 # ============================================================
 
 def now_iso() -> str:
@@ -131,8 +171,13 @@ def now_iso() -> str:
 
 def is_enabled(trans_id: str) -> bool:
     t = TRANSITIONS_DEF[trans_id]
+    # Vérifie les entrées (Pre)
     for place, weight in t["inputs"].items():
         if state["marking"].get(place, 0) < weight:
+            return False
+    # Vérifie les arcs inhibiteurs (bloque si M > 0)
+    for place in t.get("inhibitors", []):
+        if state["marking"].get(place, 0) > 0:
             return False
     return True
 
@@ -143,13 +188,42 @@ def enabled_transitions() -> List[str]:
 
 def fire_in_place(trans_id: str) -> None:
     t = TRANSITIONS_DEF[trans_id]
+
+    # Consomme les entrées
     for place, weight in t["inputs"].items():
         state["marking"][place] = state["marking"].get(place, 0) - weight
+
+    # Ajoute les sorties
     for place, weight in t["outputs"].items():
         state["marking"][place] = state["marking"].get(place, 0) + weight
 
+    # Comportement spécial : forçage de l'axe au vert
+    special = t.get("special")
+    if special == "force_ns_green":
+        state["marking"]["P1"] = 1
+        state["marking"]["P2"] = 0
+        state["marking"]["P3"] = 0
+        # EO reste au rouge
+        state["marking"]["P4"] = 0
+        state["marking"]["P5"] = 0
+        state["marking"]["P6"] = 1
+    elif special == "force_eo_green":
+        state["marking"]["P4"] = 1
+        state["marking"]["P5"] = 0
+        state["marking"]["P6"] = 0
+        # NS reste au rouge
+        state["marking"]["P1"] = 0
+        state["marking"]["P2"] = 0
+        state["marking"]["P3"] = 1
+
 
 def current_phase() -> str:
+    if state["marking"].get("P14_NS", 0) > 0:
+        return "URGENCE_NS"
+    if state["marking"].get("P14_EO", 0) > 0:
+        return "URGENCE_EO"
+    if state["marking"].get("P10", 0) > 0:
+        return "PIETON"
     if state["marking"].get("P1", 0) > 0:
         return "NS"
     if state["marking"].get("P4", 0) > 0:
@@ -181,6 +255,10 @@ def build_network_payload() -> Dict:
                 {"place_id": pid, "weight": w}
                 for pid, w in TRANSITIONS_DEF[tid]["outputs"].items()
             ],
+            "inhibitors": [
+                {"place_id": pid}
+                for pid in TRANSITIONS_DEF[tid].get("inhibitors", [])
+            ],
             "enabled": is_enabled(tid),
         }
         for tid in TRANSITIONS_DEF
@@ -199,7 +277,7 @@ def build_constraints_payload() -> Dict:
     constraints = [
         {
             "id": "C1",
-            "name": "Exclusion mutuelle",
+            "name": "Exclusion mutuelle feux",
             "formal_notation": "M(P1) + M(P4) ≤ 1",
             "explanation": "Feux NS et EO jamais verts en même temps.",
             "satisfied": (m.get("P1", 0) + m.get("P4", 0)) <= 1,
@@ -215,10 +293,10 @@ def build_constraints_payload() -> Dict:
         },
         {
             "id": "C3",
-            "name": "Priorité urgence",
-            "formal_notation": "M(P14) = 1 ⇒ transitions non-urgence désactivées",
-            "explanation": "Véhicule d'urgence préempte tout autre flux.",
-            "satisfied": True,
+            "name": "Exclusion mutuelle urgences",
+            "formal_notation": "M(P14_NS) + M(P14_EO) ≤ 1",
+            "explanation": "Une seule préemption urgence active à la fois.",
+            "satisfied": (m.get("P14_NS", 0) + m.get("P14_EO", 0)) <= 1,
         },
         {
             "id": "C4",
@@ -229,20 +307,57 @@ def build_constraints_payload() -> Dict:
         },
         {
             "id": "C5",
-            "name": "Bornage files",
-            "formal_notation": "M(P7) ≤ 12 ∧ M(P8) ≤ 12",
-            "explanation": "Capacité géométrique des files d'attente.",
-            "satisfied": m.get("P7", 0) <= 12 and m.get("P8", 0) <= 12,
+            "name": "Bornage file NS Nord",
+            "formal_notation": "M(P7) ≤ 12",
+            "explanation": "Capacité géométrique de la file NS Nord.",
+            "satisfied": m.get("P7", 0) <= 12,
         },
         {
             "id": "C6",
-            "name": "Priorité bus",
-            "formal_notation": "M(P11) = 1 ⇒ priorité accordée au bus",
-            "explanation": "Bus RFID traité préférentiellement.",
-            "satisfied": True,
+            "name": "Préemption NS → feu NS vert",
+            "formal_notation": "M(P14_NS) = 1 ⇒ M(P1) = 1",
+            "explanation": "Urgence NS force le feu NS au vert.",
+            "satisfied": not (m.get("P14_NS", 0) > 0) or m.get("P1", 0) > 0,
         },
         {
             "id": "C7",
+            "name": "Préemption EO → feu EO vert",
+            "formal_notation": "M(P14_EO) = 1 ⇒ M(P4) = 1",
+            "explanation": "Urgence EO force le feu EO au vert.",
+            "satisfied": not (m.get("P14_EO", 0) > 0) or m.get("P4", 0) > 0,
+        },
+        {
+            "id": "C8",
+            "name": "Capacité NS globale",
+            "formal_notation": "M(P7) + M(P16) ≤ 24",
+            "explanation": "Capacité combinée des files NS (Nord + Sud).",
+            "satisfied": (m.get("P7", 0) + m.get("P16", 0)) <= 24,
+        },
+        {
+            "id": "C9",
+            "name": "Capacité EO globale",
+            "formal_notation": "M(P8) + M(P17) ≤ 24",
+            "explanation": "Capacité combinée des files EO (Ouest + Est).",
+            "satisfied": (m.get("P8", 0) + m.get("P17", 0)) <= 24,
+        },
+        {
+            "id": "C10",
+            "name": "Piéton bloque urgence",
+            "formal_notation": "M(P10) = 1 ⇒ M(P14_NS) + M(P14_EO) = 0",
+            "explanation": "Aucune préemption tant qu'un piéton traverse.",
+            "satisfied": not (m.get("P10", 0) > 0) or (
+                m.get("P14_NS", 0) + m.get("P14_EO", 0) == 0
+            ),
+        },
+        {
+            "id": "C11",
+            "name": "Bornage file EO Ouest",
+            "formal_notation": "M(P8) ≤ 12",
+            "explanation": "Capacité géométrique de la file EO Ouest.",
+            "satisfied": m.get("P8", 0) <= 12,
+        },
+        {
+            "id": "C12",
             "name": "Orange incompressible",
             "formal_notation": "durée(orange) ≥ 3.0s",
             "explanation": "Temps de dégagement minimum garanti.",
@@ -259,8 +374,9 @@ def build_constraints_payload() -> Dict:
 @app.get("/")
 def root():
     return {
-        "service": "Carrefour Intelligent — Backend de test",
+        "service": "Carrefour Intelligent — Backend de test v3",
         "status": "ok",
+        "schema": {"places": 17, "transitions": 18, "constraints": 12},
         "endpoints": [
             "GET  /network",
             "GET  /enabled-transitions",
@@ -301,7 +417,7 @@ def fire(transition_id: str):
                 "error": "conflict",
                 "reason": (
                     f"Transition {transition_id} bloquée : "
-                    f"entrées insuffisantes dans le marquage courant."
+                    f"conditions d'entrée ou inhibiteurs non satisfaits."
                 ),
             },
         )
@@ -339,12 +455,17 @@ def get_timer():
     }
 
 
+# Mapping événement → place cible
 INJECT_TARGET = {
-    "voiture_ns": "P7",
-    "voiture_eo": "P8",
-    "pieton":     "P9",
-    "bus":        "P11",
-    "urgence":    "P13",
+    "voiture_ns":     "P7",
+    "voiture_eo":     "P8",
+    "voiture_ns_sud": "P16",
+    "voiture_eo_est": "P17",
+    "pieton":         "P9",
+    "urgence_n":      "P13_NS",
+    "urgence_s":      "P13_NS",
+    "urgence_w":      "P13_EO",
+    "urgence_e":      "P13_EO",
 }
 
 

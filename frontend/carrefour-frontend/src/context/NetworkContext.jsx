@@ -7,17 +7,15 @@ import {
   useState,
 } from 'react';
 import * as api from '../api/client.js';
+import { useUi } from './UiContext.jsx';
+import { useAutoPlay } from '../hooks/useAutoPlay.js';
 
-/* Buffer maximal du journal des tirs côté client. */
 const JOURNAL_MAX = 50;
-
-/* Durée d'affichage d'un toast avant auto-dismiss (ms). */
 const TOAST_DURATION = 4000;
 
-/* Paramètres du polling de santé backend. */
-const POLL_INTERVAL_HEALTHY = 10_000;   // connecté  → 10 s
-const POLL_INTERVAL_ERROR   = 3_000;    // déconnecté → 3 s
-const POLL_INITIAL_DELAY    = 2_000;    // délai avant le 1er ping après mount
+const POLL_INTERVAL_HEALTHY = 10_000;
+const POLL_INTERVAL_ERROR   = 3_000;
+const POLL_INITIAL_DELAY    = 2_000;
 
 const NetworkContext = createContext(null);
 
@@ -31,12 +29,22 @@ const INITIAL_STATE = {
   error: null,
   toast: null,
   lastUpdated: null,
+  tokenAnimations: [],   // jetons en voyage
 };
+
+/* Durée d'une animation de jeton (ms) */
+const TOKEN_TRAVEL_MS = 450;
 
 export function NetworkProvider({ children }) {
   const [state, setState] = useState(INITIAL_STATE);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [lastEmergency, setLastEmergency] = useState({ event: null, seq: 0 });
 
   const toastTimerRef = useRef(null);
+  const lastFiredRef = useRef(null);   // pour l'auto-play
+
+  /* Rate depuis UiContext (utilisé pour l'auto-play) */
+  const { rate } = useUi();
 
   const patch = useCallback((partial) => {
     setState((prev) => ({ ...prev, ...partial }));
@@ -62,17 +70,63 @@ export function NetworkProvider({ children }) {
     patch({ toast: null });
   }, [patch]);
 
-  /* ------------------------------------------------------------------ */
-  /* ΔM helper                                                           */
-  /* ------------------------------------------------------------------ */
   const computeDelta = (beforeVector, afterVector) => {
     if (!beforeVector || !afterVector) return null;
     const sum = (v) => Object.values(v).reduce((acc, n) => acc + (n || 0), 0);
     return sum(afterVector) - sum(beforeVector);
   };
+    /* Construit la liste des jetons à animer après un fire.
+     Pour chaque sortie de la transition, on anime un jeton qui va
+     du premier input vers cette sortie. */
+  const buildTokenAnimations = (transitionId, currentNetwork) => {
+    if (!currentNetwork?.transitions) return [];
 
+    const t = currentNetwork.transitions.find((x) => x.id === transitionId);
+    if (!t) return [];
+
+    const primaryInput = t.inputs?.[0];
+    if (!primaryInput) return [];
+
+    const fromPlace = primaryInput.place_id;
+    const anims = [];
+    const now = Date.now();
+
+    for (let i = 0; i < (t.outputs?.length ?? 0); i++) {
+      const out = t.outputs[i];
+      /* Skip self-loop (T15 : P15 → P15) */
+      if (out.place_id === fromPlace) continue;
+
+      anims.push({
+        id: `anim-${now}-${transitionId}-${i}`,
+        transitionId,
+        from: fromPlace,
+        to: out.place_id,
+        duration: TOKEN_TRAVEL_MS,
+      });
+    }
+
+    return anims;
+  };
+
+  /* Push puis auto-cleanup après la durée de l'animation */
+  const pushTokenAnimations = useCallback((anims) => {
+    if (!anims.length) return;
+
+    setState((s) => ({
+      ...s,
+      tokenAnimations: [...s.tokenAnimations, ...anims],
+    }));
+
+    const ids = new Set(anims.map((a) => a.id));
+    window.setTimeout(() => {
+      setState((s) => ({
+        ...s,
+        tokenAnimations: s.tokenAnimations.filter((a) => !ids.has(a.id)),
+      }));
+    }, TOKEN_TRAVEL_MS + 100);
+  }, []);
   /* ------------------------------------------------------------------ */
-  /* Chargement initial complet                                          */
+  /* Chargement initial                                                  */
   /* ------------------------------------------------------------------ */
   const reload = useCallback(async () => {
     patch({ loading: true, error: null });
@@ -100,9 +154,7 @@ export function NetworkProvider({ children }) {
     }
   }, [patch]);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  useEffect(() => { reload(); }, [reload]);
 
   useEffect(() => {
     return () => {
@@ -111,7 +163,7 @@ export function NetworkProvider({ children }) {
   }, []);
 
   /* ------------------------------------------------------------------ */
-  /* Refresh léger (utilisé après fire/inject/reset)                     */
+  /* Refresh léger                                                       */
   /* ------------------------------------------------------------------ */
   const refreshNetwork = useCallback(async () => {
     const [network, enabledRes] = await Promise.all([
@@ -126,12 +178,7 @@ export function NetworkProvider({ children }) {
   }, [patch]);
 
   /* ------------------------------------------------------------------ */
-  /* POLLING DE SANTÉ BACKEND                                            */
-  /*                                                                     */
-  /* - Ping léger via /timer                                             */
-  /* - Intervalle adaptatif : 10s si OK, 3s si erreur                    */
-  /* - Pause automatique quand l'onglet n'est pas visible                */
-  /* - Sur reprise (erreur → OK) : reload complet                        */
+  /* POLLING DE SANTÉ                                                    */
   /* ------------------------------------------------------------------ */
   useEffect(() => {
     let cancelled = false;
@@ -140,25 +187,18 @@ export function NetworkProvider({ children }) {
 
     const isHealthy = !state.error;
 
-    /* Un ping unitaire — très léger. */
     const ping = async () => {
       if (cancelled) return;
       try {
         const timer = await api.getTimer();
-
-        /* Succès : si on était en erreur, on resynchronise tout. */
         if (state.error) {
           await reload();
         } else {
-          /* Sinon, mise à jour silencieuse du timer. */
           patch({ timer, lastUpdated: Date.now() });
         }
       } catch {
-        /* Échec : on marque l'erreur sans toucher au reste de l'état. */
         if (!state.error) {
-          patch({
-            error: 'Backend injoignable. Reconnexion automatique…',
-          });
+          patch({ error: 'Backend injoignable. Reconnexion automatique…' });
         }
       }
     };
@@ -170,23 +210,18 @@ export function NetworkProvider({ children }) {
     };
 
     const stopInterval = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
+      if (intervalId) { clearInterval(intervalId); intervalId = null; }
     };
 
-    /* Gestion de la visibilité de l'onglet. */
     const handleVisibility = () => {
       if (document.hidden) {
         stopInterval();
       } else {
-        ping();           // ping immédiat au retour sur l'onglet
+        ping();
         startInterval();
       }
     };
 
-    /* Premier ping après un court délai (laisse le temps au boot initial). */
     timeoutId = setTimeout(() => {
       ping();
       startInterval();
@@ -200,8 +235,6 @@ export function NetworkProvider({ children }) {
       stopInterval();
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-    /* Deps : on relance l'effet quand l'état de santé change,
-       pour basculer automatiquement 10s ↔ 3s. */
   }, [state.error, reload, patch]);
 
   /* ------------------------------------------------------------------ */
@@ -226,6 +259,11 @@ export function NetworkProvider({ children }) {
           journal: [entry, ...s.journal].slice(0, JOURNAL_MAX),
         }));
 
+
+        /* Animation du jeton : input → output */
+        const anims = buildTokenAnimations(transitionId, state.network);
+        pushTokenAnimations(anims);
+
         await refreshNetwork();
         return { ok: true };
       } catch (err) {
@@ -236,7 +274,7 @@ export function NetworkProvider({ children }) {
         return { ok: false, error: err };
       }
     },
-    [state.network, refreshNetwork, showToast]
+    [state.network, refreshNetwork, showToast, pushTokenAnimations]
   );
 
   const inject = useCallback(
@@ -244,6 +282,11 @@ export function NetworkProvider({ children }) {
       const beforeVector = state.network?.marking_vector;
       try {
         const res = await api.injectEvent(event);
+
+        if (event.startsWith('urgence_')) {
+          setLastEmergency((prev) => ({ event, seq: prev.seq + 1 }));
+        }
+
         const delta = computeDelta(beforeVector, res?.marking_vector);
 
         const entry = {
@@ -275,10 +318,13 @@ export function NetworkProvider({ children }) {
     try {
       const network = await api.resetNetwork();
       const enabledRes = await api.getEnabledTransitions();
+      setLastEmergency({ event: null, seq: 0 });
+      lastFiredRef.current = null;
       patch({
         network,
         enabled: enabledRes?.enabled ?? [],
         journal: [],
+        tokenAnimations: [],
         error: null,
         lastUpdated: Date.now(),
       });
@@ -292,6 +338,40 @@ export function NetworkProvider({ children }) {
     }
   }, [patch, showToast]);
 
+  /* ------------------------------------------------------------------ */
+  /* Auto-play — moteur d'exécution automatique                          */
+  /* ------------------------------------------------------------------ */
+  useAutoPlay({
+    isPlaying,
+    enabled: state.enabled,
+    fire,
+    rate,
+    lastFiredRef,
+  });
+
+  const play = useCallback(() => setIsPlaying(true), []);
+  const pause = useCallback(() => setIsPlaying(false), []);
+
+  /* Step : avance d'une seule transition (hors boucle) */
+  const step = useCallback(async () => {
+    const { CYCLE } = await import('../hooks/useAutoPlay.js');
+    const startIdx = lastFiredRef.current
+      ? CYCLE.indexOf(lastFiredRef.current) + 1
+      : 0;
+    for (let i = 0; i < CYCLE.length; i++) {
+      const idx = (startIdx + i) % CYCLE.length;
+      const tid = CYCLE[idx];
+      if ((state.enabled ?? []).includes(tid)) {
+        lastFiredRef.current = tid;
+        await fire(tid);
+        return;
+      }
+    }
+  }, [state.enabled, fire]);
+
+  /* ------------------------------------------------------------------ */
+  /* API publique                                                        */
+  /* ------------------------------------------------------------------ */
   const value = {
     ...state,
     fire,
@@ -301,6 +381,12 @@ export function NetworkProvider({ children }) {
     refreshNetwork,
     showToast,
     dismissToast,
+    lastEmergency,
+    /* Auto-play */
+    isPlaying,
+    play,
+    pause,
+    step,
   };
 
   return (

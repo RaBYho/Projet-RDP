@@ -1,0 +1,259 @@
+/*
+ * Réseau de Petri — Carrefour Intelligent (v3)
+ * Version "manuel / publication" : symétrique, compacte, lisible.
+ *
+ * IMPORTANT :
+ * - les 10 arcs inhibiteurs explicitement spécifiés sont conservés;
+ * - aucun arc/identifiant supplémentaire n'est inventé;
+ * - les places sont des cercles blancs;
+ * - les transitions sont des barres verticales noires;
+ * - les jetons initiaux sont visibles;
+ * - la mise en page est pilotée par neato pour obtenir une composition
+ *   stable proche d'un schéma académique de cours.
+ */
+
+digraph PetriCarrefour {
+    layout=neato;
+    overlap=false;
+    splines=curved;
+    outputorder=edgesfirst;
+    bgcolor="white";
+    pad=0.15;
+    margin=0;
+    fontname="Helvetica";
+    fontsize=11;
+
+    /* Format de référence : A4 paysage */
+    size="11.69,8.27!";
+    ratio="fill";
+
+    /* ---------- Styles ---------- */
+    node [
+        fontname="Helvetica",
+        fontsize=10,
+        color="black"
+    ];
+
+    edge [
+        color="black",
+        penwidth=1.15,
+        arrowsize=0.58,
+        fontname="Helvetica",
+        fontsize=9
+    ];
+
+    /* ---------- Titre ---------- */
+    title [
+        pos="5.85,7.95!",
+        pin=true,
+        shape=plain,
+        label=<
+            <FONT FACE="Helvetica" POINT-SIZE="18"><B>Réseau de Petri — Carrefour Intelligent (v3)</B></FONT><BR/>
+            <FONT FACE="Helvetica" POINT-SIZE="10">17 places · 18 transitions · 12 contraintes · Marquage initial M₀ = 8 jetons</FONT>
+        >
+    ];
+
+    /* ---------- Place ---------- */
+    node [
+        shape=circle,
+        fixedsize=true,
+        width=0.46,
+        height=0.46,
+        margin=0,
+        style="filled",
+        fillcolor="white",
+        penwidth=1.5,
+        pin=true
+    ];
+
+    /* ================================================================
+     * ZONE FILES — gauche
+     * ================================================================ */
+    subgraph cluster_files {
+        label="FILES";
+        labelloc="t";
+        labeljust="l";
+        fontname="Helvetica";
+        fontsize=11;
+        color="#B8B8B8";
+        fillcolor="#F3F3F3";
+        style="rounded,filled";
+        penwidth=0.9;
+
+        P7  [pos="0.75,6.15!", label="•••", xlabel="P7\nFile NS Nord"];
+        T7  [pos="1.45,6.15!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T7"];
+
+        P8  [pos="0.75,5.00!", label="••", xlabel="P8\nFile EO Ouest"];
+        T8  [pos="1.45,5.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T8"];
+
+        P16 [pos="0.75,3.85!", label="", xlabel="P16\nFile NS Sud"];
+        T17 [pos="1.45,3.85!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T17"];
+
+        P17 [pos="0.75,2.70!", label="", xlabel="P17\nFile EO Est"];
+        T18 [pos="1.45,2.70!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T18"];
+    }
+
+    /* ================================================================
+     * ZONE CYCLE FEUX — centre
+     * ================================================================ */
+    subgraph cluster_cycle {
+        label="CYCLE FEUX";
+        labelloc="t";
+        labeljust="l";
+        fontname="Helvetica";
+        fontsize=11;
+        color="#AFC4D9";
+        fillcolor="#F3F8FC";
+        style="rounded,filled";
+        penwidth=0.9;
+
+        /* NS : P1 -> T1 -> P2 -> T2 -> P3 -> T3 -> P1 */
+        P1 [pos="3.00,6.00!", label="•", xlabel="P1\nFeu NS vert"];
+        T1 [pos="3.65,6.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T1"];
+        P2 [pos="4.30,6.00!", label="", xlabel="P2\nFeu NS orange"];
+        T2 [pos="4.95,6.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T2"];
+        P3 [pos="5.60,6.00!", label="", xlabel="P3\nFeu NS rouge"];
+        T3 [pos="6.25,6.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T3"];
+
+        /* EO : P4 -> T4 -> P5 -> T5 -> P6 -> T6 -> P4 */
+        P4 [pos="3.00,4.00!", label="", xlabel="P4\nFeu EO vert"];
+        T4 [pos="3.65,4.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T4"];
+        P5 [pos="4.30,4.00!", label="", xlabel="P5\nFeu EO orange"];
+        T5 [pos="4.95,4.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T5"];
+        P6 [pos="5.60,4.00!", label="•", xlabel="P6\nFeu EO rouge"];
+        T6 [pos="6.25,4.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T6"];
+
+        /* Hub temporel */
+        P15 [pos="4.62,5.00!", label="•", xlabel="P15\nTimer cycle"];
+        T15 [pos="4.62,5.85!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T15"];
+        T16 [pos="4.62,4.15!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T16"];
+    }
+
+    /* ================================================================
+     * ZONE PIÉTON — bas-centre
+     * ================================================================ */
+    subgraph cluster_pieton {
+        label="PIÉTON";
+        labelloc="t";
+        labeljust="l";
+        fontname="Helvetica";
+        fontsize=11;
+        color="#B7D0B7";
+        fillcolor="#F4FBF4";
+        style="rounded,filled";
+        penwidth=0.9;
+
+        P9  [pos="3.25,1.15!", label="", xlabel="P9\nAppel piéton"];
+        T9  [pos="3.95,1.15!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T9"];
+        P10 [pos="4.65,1.15!", label="", xlabel="P10\nTraversée piéton"];
+        T10 [pos="5.35,1.15!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T10"];
+    }
+
+    /* ================================================================
+     * ZONE URGENCE — droite
+     * ================================================================ */
+    subgraph cluster_urgence {
+        label="URGENCE / PRÉEMPTION";
+        labelloc="t";
+        labeljust="l";
+        fontname="Helvetica";
+        fontsize=11;
+        color="#D3AAAA";
+        fillcolor="#FEF6F6";
+        style="rounded,filled";
+        penwidth=0.9;
+
+        /* axe NS */
+        P13_NS [pos="8.25,6.00!", label="", xlabel="P13_NS\nBalise urgence NS"];
+        T13_NS [pos="8.95,6.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T13_NS"];
+        P14_NS [pos="9.65,6.00!", label="", xlabel="P14_NS\nPréemption NS active"];
+        T14_NS [pos="10.35,6.00!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T14_NS"];
+
+        /* axe EO */
+        P13_EO [pos="8.25,3.95!", label="", xlabel="P13_EO\nBalise urgence EO"];
+        T13_EO [pos="8.95,3.95!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T13_EO"];
+        P14_EO [pos="9.65,3.95!", label="", xlabel="P14_EO\nPréemption EO active"];
+        T14_EO [pos="10.35,3.95!", label="", shape=box, fixedsize=true, width=0.10, height=0.36, fillcolor="black", color="black", style="filled", xlabel="T14_EO"];
+    }
+
+    /* ================================================================
+     * ARCS NORMAUX
+     * ================================================================ */
+
+    /* Files */
+    P7  -> T7;   T7  -> P15;
+    P8  -> T8;   T8  -> P15;
+    P16 -> T17;  T17 -> P15;
+    P17 -> T18;  T18 -> P15;
+
+    /* Cycle NS */
+    P1 -> T1; T1 -> P2;
+    P2 -> T2; T2 -> P3;
+    P3 -> T3; T3 -> P1;
+
+    /* Cycle EO */
+    P4 -> T4; T4 -> P5;
+    P5 -> T5; T5 -> P6;
+    P6 -> T6; T6 -> P4;
+
+    /* Timer */
+    P15 -> T15; T15 -> P15;
+    P15 -> T16;
+    T16 -> P1;
+    T16 -> P6;
+
+    /* Piéton */
+    P9 -> T9;  T9 -> P10;
+    P10 -> T10; T10 -> P9;
+
+    /* Urgence / préemption */
+    P13_NS -> T13_NS; T13_NS -> P14_NS;
+    P14_NS -> T14_NS;
+
+    P13_EO -> T13_EO; T13_EO -> P14_EO;
+    P14_EO -> T14_EO;
+
+    /* ================================================================
+     * ARCS INHIBITEURS
+     * Convention : ligne pointillée + cercle vide à la pointe.
+     * constraint=false : ils ne déforment pas le layout principal.
+     * ================================================================ */
+
+    P14_NS -> T4  [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+    P14_NS -> T5  [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+    P14_NS -> T6  [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+
+    P14_EO -> T1  [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+    P14_EO -> T2  [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+    P14_EO -> T3  [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+
+    P14_NS -> T13_EO [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+    P14_EO -> T13_NS [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+
+    P10 -> T13_NS [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+    P10 -> T13_EO [style=dashed, arrowhead=odot, penwidth=1.25, constraint=false];
+
+    /* ================================================================
+     * LÉGENDE — bas-droite
+     * ================================================================ */
+    subgraph cluster_legend {
+        label="LÉGENDE";
+        labelloc="t";
+        labeljust="l";
+        fontname="Helvetica";
+        fontsize=9;
+        color="#C0C0C0";
+        fillcolor="#FCFCFC";
+        style="rounded,filled";
+        penwidth=0.8;
+
+        Lp [pos="7.55,1.15!", shape=circle, fixedsize=true, width=0.28, height=0.28, label="", fillcolor="white", style="filled", penwidth=1.2, pin=true, xlabel="Place"];
+        Lt [pos="8.20,1.15!", shape=box, fixedsize=true, width=0.08, height=0.30, label="", fillcolor="black", style="filled", color="black", pin=true, xlabel="Transition"];
+        Lk [pos="8.85,1.15!", shape=circle, fixedsize=true, width=0.28, height=0.28, label="•", fillcolor="white", style="filled", penwidth=1.2, pin=true, xlabel="Jeton"];
+        Li [pos="9.55,1.15!", shape=point, width=0.01, label="", pin=true];
+
+        Lp -> Lt [style=invis];
+        Lt -> Lk [style=invis];
+        Lk -> Li [style=dashed, arrowhead=odot, penwidth=1.2, label="Arc inhibiteur"];
+    }
+}

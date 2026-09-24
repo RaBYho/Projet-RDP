@@ -4,7 +4,6 @@ import Badge from '../atoms/Badge.jsx';
 import { useNetwork } from '../../context/NetworkContext.jsx';
 import { getCategory } from '../../theme/categories.js';
 
-/* Mapping événement injecté → catégorie (pour l'enrichissement visuel). */
 const INJECT_CATEGORY = {
   voiture_ns: 'normal',
   voiture_eo: 'normal',
@@ -13,7 +12,6 @@ const INJECT_CATEGORY = {
   urgence:    'urgence',
 };
 
-/* Mapping événement injecté → label humain court. */
 const INJECT_LABEL = {
   voiture_ns: 'Voiture NS',
   voiture_eo: 'Voiture EO',
@@ -22,7 +20,6 @@ const INJECT_LABEL = {
   urgence:    'Urgence',
 };
 
-/* Mapping événement injecté → icône Material Symbols. */
 const INJECT_ICON = {
   voiture_ns: 'south',
   voiture_eo: 'east',
@@ -31,11 +28,6 @@ const INJECT_ICON = {
   urgence:    'warning',
 };
 
-/**
- * Déduit la catégorie d'une entrée de journal.
- *   - kind='inject' → catégorie de l'événement
- *   - kind='fire'   → catégorie de la transition (depuis network.transitions)
- */
 function entryCategory(entry, network) {
   if (entry.kind === 'inject') {
     const event = entry.transition?.replace('inject:', '') ?? '';
@@ -45,9 +37,6 @@ function entryCategory(entry, network) {
   return tr?.category ?? 'normal';
 }
 
-/**
- * Déduit le label humain d'une entrée.
- */
 function entryLabel(entry, network) {
   if (entry.kind === 'inject') {
     const event = entry.transition?.replace('inject:', '') ?? '';
@@ -57,9 +46,6 @@ function entryLabel(entry, network) {
   return tr ? `${entry.transition} · ${tr.label}` : entry.transition;
 }
 
-/**
- * Déduit l'icône d'une entrée.
- */
 function entryIcon(entry, network, category) {
   if (entry.kind === 'inject') {
     const event = entry.transition?.replace('inject:', '') ?? '';
@@ -68,9 +54,6 @@ function entryIcon(entry, network, category) {
   return getCategory(category).icon;
 }
 
-/**
- * Formate un timestamp ISO en HH:MM:SS.
- */
 function formatTime(iso) {
   if (!iso) return '—';
   try {
@@ -86,11 +69,15 @@ function formatTime(iso) {
   }
 }
 
-export default function JournalCard() {
+/**
+ * JournalCard
+ *
+ * @param {boolean} fillHeight - true : la liste prend toute la hauteur (mode onglet)
+ *                               false : la liste est limitée à 220px (mode empilé)
+ */
+export default function JournalCard({ fillHeight = false }) {
   const { network, journal } = useNetwork();
 
-  /* Enrichissement des entrées — fait une seule fois par render,
-     dépend de `journal` et `network` (pour le lookup catégorie). */
   const enriched = useMemo(
     () =>
       (journal ?? []).map((entry) => {
@@ -105,12 +92,19 @@ export default function JournalCard() {
     [journal, network]
   );
 
-  return (
-    <div className="bg-surface-panel rounded-lg border border-border shadow-l1 p-space-md flex flex-col gap-space-sm">
+  const cardClass = fillHeight
+    ? 'bg-surface-panel rounded-lg border border-border shadow-l1 p-space-lg flex flex-col gap-space-md h-full min-h-0'
+    : 'bg-surface-panel rounded-lg border border-border shadow-l1 p-space-lg flex flex-col gap-space-md';
 
-      {/* ---- En-tête ---- */}
-      <div className="flex items-center justify-between gap-space-sm">
-        <div className="flex items-center gap-space-xs">
+  const listClass = fillHeight
+    ? 'flex flex-col gap-space-sm flex-1 min-h-0 overflow-y-auto scrollbar-thin pr-2 -mr-2'
+    : 'flex flex-col gap-space-sm h-[220px] overflow-y-auto scrollbar-thin pr-2 -mr-2';
+
+  return (
+    <div className={cardClass}>
+      {/* En-tête */}
+      <div className="flex items-center justify-between gap-space-sm shrink-0">
+        <div className="flex items-center gap-space-sm">
           <Icon name="history" size={18} className="text-primary" />
           <span className="text-headline-sm text-ink">Journal des Tirs</span>
         </div>
@@ -119,29 +113,24 @@ export default function JournalCard() {
         </Badge>
       </div>
 
-      {/* ---- Liste ou état vide ---- */}
+      {/* Liste */}
       {enriched.length === 0 ? (
-        <EmptyState />
+        <EmptyState fillHeight={fillHeight} />
       ) : (
-        <div className="flex flex-col gap-1 h-[180px] overflow-y-auto pr-1 -mr-1">
+        <div className={listClass}>
           {enriched.map((entry) => (
             <JournalRow key={entry.key} entry={entry} />
           ))}
         </div>
       )}
-
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Sous-composant : une ligne du journal                               */
-/* ------------------------------------------------------------------ */
 function JournalRow({ entry }) {
   const cat = getCategory(entry._category);
   const delta = entry.delta;
-  const deltaLabel =
-    delta == null ? '—' : `${delta >= 0 ? '+' : ''}${delta}`;
+  const deltaLabel = delta == null ? '—' : `${delta >= 0 ? '+' : ''}${delta}`;
   const deltaTone =
     delta == null
       ? 'text-ink-caption'
@@ -150,34 +139,23 @@ function JournalRow({ entry }) {
         : 'text-danger';
 
   return (
-    <div
-      className="flex items-center gap-space-sm px-2 py-1.5 rounded bg-surface-muted hover:bg-surface transition-colors duration-200 ease-out"
-    >
-      {/* Pastille colorée catégorie */}
+    <div className="flex items-center gap-space-sm px-space-md py-space-sm rounded bg-surface-muted hover:bg-surface transition-colors duration-200 ease-out animate-[slideInTop_280ms_cubic-bezier(0.16,1,0.3,1)]">
       <span
-        className="w-1.5 h-6 rounded-full shrink-0"
+        className="w-1.5 h-7 rounded-full shrink-0"
         style={{ backgroundColor: cat.hex }}
       />
-
-      {/* Timestamp mono */}
       <span className="font-mono text-[10px] text-ink-caption tabular-nums shrink-0">
         {formatTime(entry.timestamp)}
       </span>
-
-      {/* Icône */}
       <Icon
         name={entry._icon}
         size={14}
         className="shrink-0"
         style={{ color: cat.hex }}
       />
-
-      {/* Label — tronqué si trop long */}
       <span className="text-body-sm text-ink truncate flex-1 min-w-0">
         {entry._label}
       </span>
-
-      {/* Delta */}
       <span
         className={[
           'font-mono text-code-sm font-semibold tabular-nums shrink-0',
@@ -190,19 +168,21 @@ function JournalRow({ entry }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Sous-composant : état vide                                          */
-/* ------------------------------------------------------------------ */
-function EmptyState() {
+function EmptyState({ fillHeight }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-space-xs h-[180px] text-center">
-      <Icon name="inbox" size={24} className="text-ink-disabled" />
-      <p className="text-body-sm text-ink-caption">
-        Aucun tir enregistré.
-      </p>
-      <p className="text-body-sm text-ink-disabled">
-        Cliquez sur une transition franchissable, ou injectez un événement.
-      </p>
+    <div
+      className={[
+        'flex flex-col items-center justify-center gap-space-sm text-center',
+        fillHeight ? 'flex-1 min-h-0' : 'h-[220px]',
+      ].join(' ')}
+    >
+      <Icon name="inbox" size={28} className="text-ink-disabled" />
+      <div className="flex flex-col gap-space-xs">
+        <p className="text-body-sm text-ink-caption">Aucun tir enregistré.</p>
+        <p className="text-body-sm text-ink-disabled">
+          Cliquez sur une transition franchissable, ou injectez un événement.
+        </p>
+      </div>
     </div>
   );
 }
