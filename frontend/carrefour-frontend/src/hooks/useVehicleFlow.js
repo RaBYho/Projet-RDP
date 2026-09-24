@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Configuration des 4 directions de circulation.
- * Chaque direction est un axe 1D (x ou y) avec :
- *   - lane      : coordonnée fixe sur l'autre axe
- *   - start     : point d'apparition (off-screen)
- *   - stopLine  : position d'arrêt au feu rouge
- *   - exit      : point de disparition (off-screen)
- *   - sign      : +1 si la coordonnée augmente, -1 sinon
- *   - firePlace : place du Petri qui autorise le passage (vert)
- */
+/* Active les logs de debug dans la console (à mettre false en prod) */
+const DEBUG = false;
+
 const DIRECTIONS = {
   ns: {
     axis: "y",
@@ -57,24 +50,29 @@ const DIRECTIONS = {
   },
 };
 
-const SPEED = 90; // pixels par seconde
-const CAR_LENGTH = 34; // longueur d'une voiture (px)
-const MIN_GAP = 8; // écart minimum entre 2 voitures
+const SPEED = 140;
+const CAR_LENGTH = 34;
+const MIN_GAP = 8;
 
-/**
- * Calcule la distance signée d'une position par rapport à la stop line.
- * Positif = encore dans la file. Négatif = déjà traversé.
- */
 function distanceToStop(cfg, position) {
   return cfg.sign > 0 ? cfg.stopLine - position : position - cfg.stopLine;
 }
 
-/**
- * useVehicleFlow — simulation de circulation côté client.
- *
- * @param {Object} marking - marking_vector du NetworkContext
- * @returns {Array<{id, dir, position, state}>}
- */
+/* Vérifie si deux tableaux de véhicules sont identiques (positions + états) */
+function areVehiclesEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i].id !== b[i].id ||
+      a[i].position !== b[i].position ||
+      a[i].state !== b[i].state
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function useVehicleFlow({ marking }) {
   const [vehicles, setVehicles] = useState([]);
   const nextIdRef = useRef(1);
@@ -83,22 +81,41 @@ export function useVehicleFlow({ marking }) {
   const rafRef = useRef();
   const lastTimeRef = useRef(0);
 
-  /* Synchronise le ref du marking pour la boucle d'animation */
+  /* ⚠️ Extraire les compteurs en PRIMITIFS — évite les boucles infinies.
+     marking est un objet dont la référence peut changer à chaque render. */
+  const nsCount = marking?.P7 ?? 0;
+  const nsSudCount = marking?.P16 ?? 0;
+  const eoCount = marking?.P8 ?? 0;
+  const eoEstCount = marking?.P17 ?? 0;
+
+  /* Mettre à jour la ref du marking à chaque changement (pour la boucle RAF) */
   useEffect(() => {
     markingRef.current = marking;
   }, [marking]);
 
-  /* -------------------------------------------------------------- */
-  /* Sync : ajout / retrait de véhicules quand le marquage change    */
-  /* -------------------------------------------------------------- */
+  /* Sync véhicules quand les compteurs changent (primitifs en deps) */
   useEffect(() => {
     const target = {
-      ns: marking.P7 ?? 0,
-      nsSud: marking.P16 ?? 0,
-      eo: marking.P8 ?? 0,
-      eoEst: marking.P17 ?? 0,
+      ns: nsCount,
+      nsSud: nsSudCount,
+      eo: eoCount,
+      eoEst: eoEstCount,
     };
     const prev = prevCountsRef.current;
+
+    /* Aucun changement → ne pas toucher au state */
+    if (
+      target.ns === prev.ns &&
+      target.nsSud === prev.nsSud &&
+      target.eo === prev.eo &&
+      target.eoEst === prev.eoEst
+    ) {
+      return;
+    }
+
+    if (DEBUG) {
+      console.log("[flow] sync", { prev, target });
+    }
 
     setVehicles((list) => {
       const next = [...list];
@@ -108,7 +125,6 @@ export function useVehicleFlow({ marking }) {
         const cfg = DIRECTIONS[dir];
 
         if (diff > 0) {
-          /* Ajoute des voitures au fond de la file */
           const dirCars = next.filter((v) => v.dir === dir);
           const backmostDist = dirCars.reduce((acc, v) => {
             return Math.max(acc, distanceToStop(cfg, v.position));
@@ -125,7 +141,6 @@ export function useVehicleFlow({ marking }) {
             });
           }
         } else if (diff < 0) {
-          /* Passe la voiture de tête en mode 'crossing' */
           const queue = next
             .filter((v) => v.dir === dir && v.state === "queue")
             .sort(
@@ -148,11 +163,9 @@ export function useVehicleFlow({ marking }) {
     });
 
     prevCountsRef.current = target;
-  }, [marking]);
+  }, [nsCount, nsSudCount, eoCount, eoEstCount]);
 
-  /* -------------------------------------------------------------- */
-  /* Boucle d'animation                                              */
-  /* -------------------------------------------------------------- */
+  /* Boucle RAF */
   useEffect(() => {
     const loop = (time) => {
       const dt = lastTimeRef.current
@@ -161,6 +174,9 @@ export function useVehicleFlow({ marking }) {
       lastTimeRef.current = time;
 
       setVehicles((list) => {
+        /* Rien à animer → ne pas re-render */
+        if (list.length === 0) return list;
+
         const m = markingRef.current ?? {};
         const byDir = {};
         for (const v of list) {
@@ -169,12 +185,12 @@ export function useVehicleFlow({ marking }) {
         }
 
         const next = [];
+        let changed = false;
 
         for (const dir of Object.keys(byDir)) {
           const cfg = DIRECTIONS[dir];
           const isGreen = (m[cfg.firePlace] ?? 0) > 0;
 
-          /* Trie : voiture de tête en premier */
           const cars = byDir[dir].sort(
             (a, b) =>
               distanceToStop(cfg, a.position) - distanceToStop(cfg, b.position),
@@ -186,18 +202,15 @@ export function useVehicleFlow({ marking }) {
             let newPosition = car.position + cfg.sign * SPEED * dt;
             let state = car.state;
 
-            /* Empêche de franchir la stop line si rouge */
             const distToStop = distanceToStop(cfg, newPosition);
             if (state === "queue" && distToStop < 0 && !isGreen) {
               newPosition = cfg.stopLine;
             }
 
-            /* Bascule en 'crossing' dès qu'elle franchit la stop line */
             if (state === "queue" && distanceToStop(cfg, newPosition) < 0) {
               state = "crossing";
             }
 
-            /* Respecte l'écart minimum avec la voiture de devant */
             if (frontmostPosition !== null) {
               const minAllowed =
                 frontmostPosition - cfg.sign * (CAR_LENGTH + MIN_GAP);
@@ -208,14 +221,28 @@ export function useVehicleFlow({ marking }) {
               }
             }
 
-            /* Sortie de scène → suppression */
             const pastExit =
               cfg.sign > 0 ? newPosition > cfg.exit : newPosition < cfg.exit;
-            if (pastExit) continue;
+            if (pastExit) {
+              changed = true;
+              continue;
+            }
 
             frontmostPosition = newPosition;
+
+            /* Détecter un vrai changement */
+            if (newPosition !== car.position || state !== car.state) {
+              changed = true;
+            }
+
             next.push({ ...car, position: newPosition, state });
           }
+        }
+
+        /* Aucun changement réel → retourner la même liste
+           (évite un re-render inutile) */
+        if (!changed && areVehiclesEqual(list, next)) {
+          return list;
         }
 
         return next;
@@ -225,15 +252,15 @@ export function useVehicleFlow({ marking }) {
     };
 
     rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   return vehicles;
 }
 
-/**
- * Convertit un véhicule en props pour le composant <Vehicle>.
- */
 export function getVehicleRenderProps(vehicle) {
   const cfg = DIRECTIONS[vehicle.dir];
   if (!cfg) return null;

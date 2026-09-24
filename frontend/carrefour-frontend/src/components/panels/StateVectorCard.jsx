@@ -4,20 +4,6 @@ import { useNetwork } from '../../context/NetworkContext.jsx';
 import { useUi } from '../../context/UiContext.jsx';
 import { getCategory } from '../../theme/categories.js';
 
-const PLACE_IDS = Array.from({ length: 17 }, (_, i) => `P${i + 1}`);
-const TOTAL_CELLS = 18; // 6×3
-
-function categoryOfPlace(placeId, network) {
-  const place = network?.places?.find((p) => p.id === placeId);
-  if (place?.category) return place.category;
-  const t = network?.transitions?.find(
-    (tr) =>
-      tr.inputs?.some((i) => i.place_id === placeId) ||
-      tr.outputs?.some((o) => o.place_id === placeId)
-  );
-  return t?.category ?? 'normal';
-}
-
 export default function StateVectorCard() {
   const { network, loading } = useNetwork();
   const { viewMode } = useUi();
@@ -35,25 +21,30 @@ export default function StateVectorCard() {
 
   if (!network) return null;
 
+  /* ✅ On itère sur les vraies places renvoyées par le backend,
+     pas sur une liste en dur. Compatible v3 (P13_NS, etc.). */
+  const placeIds = network.places.map((p) => p.id);
   const vector = network.marking_vector ?? {};
-  const totalTokens = PLACE_IDS.reduce((sum, id) => sum + (vector[id] ?? 0), 0);
-  const activePlaces = PLACE_IDS.filter((id) => (vector[id] ?? 0) > 0).length;
 
-  const formula = `M = [${PLACE_IDS.map(
+  const totalTokens = placeIds.reduce((sum, id) => sum + (vector[id] ?? 0), 0);
+  const activePlaces = placeIds.filter((id) => (vector[id] ?? 0) > 0).length;
+
+  const formula = `M = [${placeIds.map(
     (id) => `${id}:${vector[id] ?? 0}`
   ).join(', ')}]`;
 
-  const emptyCells = TOTAL_CELLS - PLACE_IDS.length;
+  /* Padding pour compléter une grille 6×N */
+  const cols = 6;
+  const rows = Math.ceil(placeIds.length / cols);
+  const emptyCells = cols * rows - placeIds.length;
 
-  /* Adaptations selon le mode d'affichage */
   const isFormal = viewMode === 'formal';
   const title = isFormal ? 'Vecteur Dynamique M(t)' : 'État des places';
-  const badge = isFormal ? `dim = ${PLACE_IDS.length}` : `${activePlaces} actives`;
+  const badge = isFormal ? `dim = ${placeIds.length}` : `${activePlaces} actives`;
 
   return (
     <div className="bg-surface-panel rounded-lg border border-border shadow-l1 p-space-lg flex flex-col gap-space-md">
 
-      {/* En-tête */}
       <div className="flex items-center justify-between gap-space-sm">
         <div className="flex items-center gap-space-sm">
           <Icon
@@ -68,7 +59,6 @@ export default function StateVectorCard() {
         </Badge>
       </div>
 
-      {/* Formule brute — uniquement en vue formelle */}
       {isFormal ? (
         <div className="rounded bg-surface-muted px-space-md py-space-sm overflow-x-auto">
           <code className="font-mono text-code-sm text-ink-muted whitespace-nowrap">
@@ -82,12 +72,12 @@ export default function StateVectorCard() {
         </p>
       )}
 
-      {/* Grille 6×3 */}
       <div className="grid grid-cols-6 gap-1.5 tabular-nums">
-        {PLACE_IDS.map((id) => {
+        {placeIds.map((id) => {
           const tokens = vector[id] ?? 0;
           const isActive = tokens > 0;
-          const cat = getCategory(categoryOfPlace(id, network));
+          const place = network.places.find((p) => p.id === id);
+          const cat = getCategory(place?.category ?? 'normal');
 
           return (
             <div
@@ -126,14 +116,13 @@ export default function StateVectorCard() {
         ))}
       </div>
 
-      {/* Pied */}
       <div className="flex items-center justify-between pt-space-md border-t border-border">
         <span className="font-mono text-code-sm text-ink-muted">
           Σ = <span className="text-ink font-bold tabular-nums">{totalTokens}</span>
           {isFormal && <span className="ml-1">jetons</span>}
         </span>
         <span className="font-mono text-code-sm text-ink-caption">
-          {PLACE_IDS.length} places
+          {placeIds.length} places
         </span>
       </div>
 

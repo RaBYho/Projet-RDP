@@ -5,17 +5,19 @@ import {
   useEffect,
   useRef,
   useState,
-} from 'react';
-import * as api from '../api/client.js';
-import { useUi } from './UiContext.jsx';
-import { useAutoPlay } from '../hooks/useAutoPlay.js';
+} from "react";
+
+import * as api from "../api/client.js";
+import { useUi } from "./UiContext.jsx";
+import { useAutoPlay } from "../hooks/useAutoPlay.js";
 
 const JOURNAL_MAX = 50;
 const TOAST_DURATION = 4000;
+const TOKEN_TRAVEL_MS = 450;
 
-const POLL_INTERVAL_HEALTHY = 10_000;
-const POLL_INTERVAL_ERROR   = 3_000;
-const POLL_INITIAL_DELAY    = 2_000;
+const POLL_INTERVAL_HEALTHY = 1000;
+const POLL_INTERVAL_ERROR = 3000;
+const POLL_INITIAL_DELAY = 500;
 
 const NetworkContext = createContext(null);
 
@@ -29,360 +31,672 @@ const INITIAL_STATE = {
   error: null,
   toast: null,
   lastUpdated: null,
-  tokenAnimations: [],   // jetons en voyage
+  tokenAnimations: [],
 };
-
-/* Durée d'une animation de jeton (ms) */
-const TOKEN_TRAVEL_MS = 450;
 
 export function NetworkProvider({ children }) {
   const [state, setState] = useState(INITIAL_STATE);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [lastEmergency, setLastEmergency] = useState({ event: null, seq: 0 });
+
+  const [lastEmergency, setLastEmergency] = useState({
+    event: null,
+    seq: 0,
+  });
 
   const toastTimerRef = useRef(null);
-  const lastFiredRef = useRef(null);   // pour l'auto-play
+  const lastFiredRef = useRef(null);
 
-  /* Rate depuis UiContext (utilisé pour l'auto-play) */
   const { rate } = useUi();
 
   const patch = useCallback((partial) => {
-    setState((prev) => ({ ...prev, ...partial }));
+    setState((prev) => ({
+      ...prev,
+      ...partial,
+    }));
   }, []);
 
-  /* ------------------------------------------------------------------ */
-  /* Toasts                                                              */
-  /* ------------------------------------------------------------------ */
-  const showToast = useCallback((toast) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    patch({ toast });
-    toastTimerRef.current = setTimeout(() => {
-      setState((s) => (s.toast === toast ? { ...s, toast: null } : s));
-      toastTimerRef.current = null;
-    }, TOAST_DURATION);
-  }, [patch]);
+  // ---------------------------------------------------------------------------
+  // Toasts
+  // ---------------------------------------------------------------------------
+
+  const showToast = useCallback(
+    (toast) => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+
+      patch({ toast });
+
+      toastTimerRef.current = window.setTimeout(() => {
+        setState((current) =>
+          current.toast === toast
+            ? { ...current, toast: null }
+            : current
+        );
+
+        toastTimerRef.current = null;
+      }, TOAST_DURATION);
+    },
+    [patch]
+  );
 
   const dismissToast = useCallback(() => {
     if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
+      window.clearTimeout(toastTimerRef.current);
       toastTimerRef.current = null;
     }
+
     patch({ toast: null });
   }, [patch]);
 
-  const computeDelta = (beforeVector, afterVector) => {
-    if (!beforeVector || !afterVector) return null;
-    const sum = (v) => Object.values(v).reduce((acc, n) => acc + (n || 0), 0);
-    return sum(afterVector) - sum(beforeVector);
-  };
-    /* Construit la liste des jetons à animer après un fire.
-     Pour chaque sortie de la transition, on anime un jeton qui va
-     du premier input vers cette sortie. */
-  const buildTokenAnimations = (transitionId, currentNetwork) => {
-    if (!currentNetwork?.transitions) return [];
+  // ---------------------------------------------------------------------------
+  // Utilitaires
+  // ---------------------------------------------------------------------------
 
-    const t = currentNetwork.transitions.find((x) => x.id === transitionId);
-    if (!t) return [];
-
-    const primaryInput = t.inputs?.[0];
-    if (!primaryInput) return [];
-
-    const fromPlace = primaryInput.place_id;
-    const anims = [];
-    const now = Date.now();
-
-    for (let i = 0; i < (t.outputs?.length ?? 0); i++) {
-      const out = t.outputs[i];
-      /* Skip self-loop (T15 : P15 → P15) */
-      if (out.place_id === fromPlace) continue;
-
-      anims.push({
-        id: `anim-${now}-${transitionId}-${i}`,
-        transitionId,
-        from: fromPlace,
-        to: out.place_id,
-        duration: TOKEN_TRAVEL_MS,
-      });
+  const computeDelta = useCallback((beforeVector, afterVector) => {
+    if (!beforeVector || !afterVector) {
+      return null;
     }
 
-    return anims;
-  };
+    const sum = (vector) =>
+      Object.values(vector).reduce(
+        (total, value) => total + (value || 0),
+        0
+      );
 
-  /* Push puis auto-cleanup après la durée de l'animation */
-  const pushTokenAnimations = useCallback((anims) => {
-    if (!anims.length) return;
+    return sum(afterVector) - sum(beforeVector);
+  }, []);
 
-    setState((s) => ({
-      ...s,
-      tokenAnimations: [...s.tokenAnimations, ...anims],
+  // ---------------------------------------------------------------------------
+  // Animations de jetons
+  // ---------------------------------------------------------------------------
+
+  const buildTokenAnimations = useCallback(
+    (transitionId, currentNetwork) => {
+      if (!currentNetwork?.transitions) {
+        return [];
+      }
+
+      const transition = currentNetwork.transitions.find(
+        (item) => item.id === transitionId
+      );
+
+      if (!transition) {
+        return [];
+      }
+
+      const primaryInput = transition.inputs?.[0];
+
+      if (!primaryInput) {
+        return [];
+      }
+
+      const fromPlace = primaryInput.place_id;
+      const animations = [];
+      const now = Date.now();
+
+      for (
+        let index = 0;
+        index < (transition.outputs?.length ?? 0);
+        index += 1
+      ) {
+        const output = transition.outputs[index];
+
+        if (output.place_id === fromPlace) {
+          continue;
+        }
+
+        animations.push({
+          id: `anim-${now}-${transitionId}-${index}`,
+          transitionId,
+          from: fromPlace,
+          to: output.place_id,
+          duration: TOKEN_TRAVEL_MS,
+        });
+      }
+
+      return animations;
+    },
+    []
+  );
+
+  const pushTokenAnimations = useCallback((animations) => {
+    if (!animations.length) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      tokenAnimations: [
+        ...current.tokenAnimations,
+        ...animations,
+      ],
     }));
 
-    const ids = new Set(anims.map((a) => a.id));
+    const ids = new Set(
+      animations.map((animation) => animation.id)
+    );
+
     window.setTimeout(() => {
-      setState((s) => ({
-        ...s,
-        tokenAnimations: s.tokenAnimations.filter((a) => !ids.has(a.id)),
+      setState((current) => ({
+        ...current,
+        tokenAnimations: current.tokenAnimations.filter(
+          (animation) => !ids.has(animation.id)
+        ),
       }));
     }, TOKEN_TRAVEL_MS + 100);
   }, []);
-  /* ------------------------------------------------------------------ */
-  /* Chargement initial                                                  */
-  /* ------------------------------------------------------------------ */
-  const reload = useCallback(async () => {
-    patch({ loading: true, error: null });
-    try {
-      const [network, enabledRes, propertiesRes, timer] = await Promise.all([
+
+  // ---------------------------------------------------------------------------
+  // Synchronisation complète du backend
+  //
+  // Important :
+  // Le scheduler backend peut modifier le réseau sans aucune action
+  // du frontend. On doit donc resynchroniser :
+  //   - network
+  //   - enabled
+  //   - constraints
+  //   - timer
+  // ---------------------------------------------------------------------------
+
+  const syncBackend = useCallback(async () => {
+    const [network, enabledRes, propertiesRes, timer] =
+      await Promise.all([
         api.getNetwork(),
         api.getEnabledTransitions(),
         api.getProperties(),
         api.getTimer(),
       ]);
-      patch({
-        network,
-        enabled: enabledRes?.enabled ?? [],
-        constraints: propertiesRes?.constraints ?? [],
-        timer,
-        loading: false,
-        error: null,
-        lastUpdated: Date.now(),
-      });
-    } catch (err) {
-      patch({
-        loading: false,
-        error: err?.message ?? 'Erreur de chargement du réseau.',
-      });
-    }
-  }, [patch]);
 
-  useEffect(() => { reload(); }, [reload]);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
-
-  /* ------------------------------------------------------------------ */
-  /* Refresh léger                                                       */
-  /* ------------------------------------------------------------------ */
-  const refreshNetwork = useCallback(async () => {
-    const [network, enabledRes] = await Promise.all([
-      api.getNetwork(),
-      api.getEnabledTransitions(),
-    ]);
     patch({
       network,
       enabled: enabledRes?.enabled ?? [],
+      constraints: propertiesRes?.constraints ?? [],
+      timer,
       lastUpdated: Date.now(),
+      error: null,
     });
+
+    return {
+      network,
+      enabled: enabledRes?.enabled ?? [],
+      constraints: propertiesRes?.constraints ?? [],
+      timer,
+    };
   }, [patch]);
 
-  /* ------------------------------------------------------------------ */
-  /* POLLING DE SANTÉ                                                    */
-  /* ------------------------------------------------------------------ */
+  // ---------------------------------------------------------------------------
+  // Chargement initial
+  // ---------------------------------------------------------------------------
+
+  const reload = useCallback(async () => {
+    patch({
+      loading: true,
+      error: null,
+    });
+
+    try {
+      await syncBackend();
+
+      patch({
+        loading: false,
+        error: null,
+      });
+
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      patch({
+        loading: false,
+        error:
+          error?.message ??
+          "Erreur de chargement du réseau.",
+      });
+
+      return {
+        ok: false,
+        error,
+      };
+    }
+  }, [patch, syncBackend]);
+
   useEffect(() => {
-    let cancelled = false;
-    let intervalId = null;
-    let timeoutId = null;
+    reload();
+  }, [reload]);
 
-    const isHealthy = !state.error;
+  // ---------------------------------------------------------------------------
+  // Nettoyage
+  // ---------------------------------------------------------------------------
 
-    const ping = async () => {
-      if (cancelled) return;
-      try {
-        const timer = await api.getTimer();
-        if (state.error) {
-          await reload();
-        } else {
-          patch({ timer, lastUpdated: Date.now() });
-        }
-      } catch {
-        if (!state.error) {
-          patch({ error: 'Backend injoignable. Reconnexion automatique…' });
-        }
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
       }
     };
+  }, []);
 
-    const startInterval = () => {
-      if (intervalId) clearInterval(intervalId);
-      const delay = isHealthy ? POLL_INTERVAL_HEALTHY : POLL_INTERVAL_ERROR;
-      intervalId = setInterval(ping, delay);
+  // ---------------------------------------------------------------------------
+  // Synchronisation légère
+  // ---------------------------------------------------------------------------
+
+  const refreshNetwork = useCallback(async () => {
+    return syncBackend();
+  }, [syncBackend]);
+
+  // ---------------------------------------------------------------------------
+  // Polling
+  //
+  // IMPORTANT :
+  // On ne récupère plus uniquement /timer.
+  // Le backend peut faire évoluer le réseau via le scheduler.
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = null;
+
+    const poll = async () => {
+      if (cancelled) {
+        return;
+      }
+
+      try {
+        await syncBackend();
+      } catch (error) {
+        if (!cancelled) {
+          patch({
+            error:
+              error?.message ??
+              "Backend injoignable. Reconnexion automatique…",
+          });
+        }
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const delay = state.error
+        ? POLL_INTERVAL_ERROR
+        : POLL_INTERVAL_HEALTHY;
+
+      timeoutId = window.setTimeout(poll, delay);
     };
 
-    const stopInterval = () => {
-      if (intervalId) { clearInterval(intervalId); intervalId = null; }
-    };
+    const initialTimeout = window.setTimeout(
+      poll,
+      POLL_INITIAL_DELAY
+    );
 
     const handleVisibility = () => {
       if (document.hidden) {
-        stopInterval();
-      } else {
-        ping();
-        startInterval();
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        return;
       }
+
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+
+      poll();
     };
 
-    timeoutId = setTimeout(() => {
-      ping();
-      startInterval();
-    }, POLL_INITIAL_DELAY);
-
-    document.addEventListener('visibilitychange', handleVisibility);
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibility
+    );
 
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
-      stopInterval();
-      document.removeEventListener('visibilitychange', handleVisibility);
+
+      window.clearTimeout(initialTimeout);
+
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibility
+      );
     };
-  }, [state.error, reload, patch]);
+  }, [state.error, patch, syncBackend]);
 
-  /* ------------------------------------------------------------------ */
-  /* Actions métier                                                      */
-  /* ------------------------------------------------------------------ */
+  // ---------------------------------------------------------------------------
+  // Action : fire
+  // ---------------------------------------------------------------------------
+
   const fire = useCallback(
-    async (transitionId) => {
-      const beforeVector = state.network?.marking_vector;
+    async (transitionId, options = {}) => {
+      const { silent = false } = options;
+
+      const beforeVector =
+        state.network?.marking_vector;
+
       try {
-        const res = await api.fireTransition(transitionId);
-        const delta = computeDelta(beforeVector, res?.marking_vector);
+        /**
+         * 1. Le tir est l'opération principale.
+         *
+         * Si POST /fire réussit, la transition a réellement été
+         * tirée côté backend.
+         */
+        const response = await api.fireTransition(
+          transitionId
+        );
 
-        const entry = {
-          key: `fire-${Date.now()}-${transitionId}`,
-          kind: 'fire',
-          transition: transitionId,
-          timestamp: res?.timestamp ?? new Date().toISOString(),
-          delta,
+        const delta = computeDelta(
+          beforeVector,
+          response?.marking_vector
+        );
+
+        if (!silent) {
+          const entry = {
+            key: `fire-${Date.now()}-${transitionId}`,
+            kind: "fire",
+            transition: transitionId,
+            timestamp:
+              response?.timestamp ??
+              new Date().toISOString(),
+            delta,
+          };
+
+          setState((current) => ({
+            ...current,
+            journal: [
+              entry,
+              ...current.journal,
+            ].slice(0, JOURNAL_MAX),
+          }));
+        }
+
+        const animations = buildTokenAnimations(
+          transitionId,
+          state.network
+        );
+
+        pushTokenAnimations(animations);
+
+        /**
+         * 2. Le refresh est secondaire.
+         *
+         * Une erreur de refresh ne doit PAS transformer un tir
+         * réussi en "ok: false".
+         *
+         * C'est important pour lastFiredRef dans useAutoPlay.
+         */
+        try {
+          await refreshNetwork();
+        } catch (refreshError) {
+          patch({
+            error:
+              refreshError?.message ??
+              "Tir réussi, mais synchronisation du réseau échouée.",
+          });
+        }
+
+        return {
+          ok: true,
+          response,
         };
-        setState((s) => ({
-          ...s,
-          journal: [entry, ...s.journal].slice(0, JOURNAL_MAX),
-        }));
+      } catch (error) {
+        /**
+         * Même en cas d'échec, on tente une resynchronisation.
+         * Cela est particulièrement utile après un 409.
+         */
+        refreshNetwork().catch(() => {});
 
+        if (!silent) {
+          showToast({
+            kind: "error",
+            message:
+              error?.message ??
+              `Échec du tir ${transitionId}`,
+          });
+        }
 
-        /* Animation du jeton : input → output */
-        const anims = buildTokenAnimations(transitionId, state.network);
-        pushTokenAnimations(anims);
-
-        await refreshNetwork();
-        return { ok: true };
-      } catch (err) {
-        showToast({
-          kind: 'error',
-          message: err?.message ?? `Échec du tir ${transitionId}`,
-        });
-        return { ok: false, error: err };
+        return {
+          ok: false,
+          error,
+        };
       }
     },
-    [state.network, refreshNetwork, showToast, pushTokenAnimations]
+    [
+      state.network,
+      computeDelta,
+      buildTokenAnimations,
+      pushTokenAnimations,
+      refreshNetwork,
+      patch,
+      showToast,
+    ]
   );
+
+  // ---------------------------------------------------------------------------
+  // Injection d'événement
+  // ---------------------------------------------------------------------------
 
   const inject = useCallback(
     async (event) => {
-      const beforeVector = state.network?.marking_vector;
-      try {
-        const res = await api.injectEvent(event);
+      const beforeVector =
+        state.network?.marking_vector;
 
-        if (event.startsWith('urgence_')) {
-          setLastEmergency((prev) => ({ event, seq: prev.seq + 1 }));
+      try {
+        const response = await api.injectEvent(event);
+
+        if (event.startsWith("urgence_")) {
+          setLastEmergency((previous) => ({
+            event,
+            seq: previous.seq + 1,
+          }));
         }
 
-        const delta = computeDelta(beforeVector, res?.marking_vector);
+        const delta = computeDelta(
+          beforeVector,
+          response?.marking_vector
+        );
 
         const entry = {
           key: `inject-${Date.now()}-${event}`,
-          kind: 'inject',
+          kind: "inject",
           transition: `inject:${event}`,
-          timestamp: res?.timestamp ?? new Date().toISOString(),
+          timestamp:
+            response?.timestamp ??
+            new Date().toISOString(),
           delta,
         };
-        setState((s) => ({
-          ...s,
-          journal: [entry, ...s.journal].slice(0, JOURNAL_MAX),
+
+        setState((current) => ({
+          ...current,
+          journal: [
+            entry,
+            ...current.journal,
+          ].slice(0, JOURNAL_MAX),
         }));
 
-        await refreshNetwork();
-        return { ok: true };
-      } catch (err) {
+        try {
+          await refreshNetwork();
+        } catch (refreshError) {
+          patch({
+            error:
+              refreshError?.message ??
+              "Injection réussie, mais synchronisation échouée.",
+          });
+        }
+
+        return {
+          ok: true,
+          response,
+        };
+      } catch (error) {
         showToast({
-          kind: 'error',
-          message: err?.message ?? `Échec de l'injection ${event}`,
+          kind: "error",
+          message:
+            error?.message ??
+            `Échec de l'injection ${event}`,
         });
-        return { ok: false, error: err };
+
+        return {
+          ok: false,
+          error,
+        };
       }
     },
-    [state.network, refreshNetwork, showToast]
+    [
+      state.network,
+      computeDelta,
+      refreshNetwork,
+      patch,
+      showToast,
+    ]
   );
+
+  // ---------------------------------------------------------------------------
+  // Reset
+  // ---------------------------------------------------------------------------
 
   const reset = useCallback(async () => {
     try {
       const network = await api.resetNetwork();
-      const enabledRes = await api.getEnabledTransitions();
-      setLastEmergency({ event: null, seq: 0 });
+
+      const [enabledRes, propertiesRes, timer] =
+        await Promise.all([
+          api.getEnabledTransitions(),
+          api.getProperties(),
+          api.getTimer(),
+        ]);
+
+      setLastEmergency({
+        event: null,
+        seq: 0,
+      });
+
       lastFiredRef.current = null;
+
       patch({
         network,
         enabled: enabledRes?.enabled ?? [],
+        constraints:
+          propertiesRes?.constraints ?? [],
+        timer,
         journal: [],
         tokenAnimations: [],
         error: null,
         lastUpdated: Date.now(),
       });
-      return { ok: true };
-    } catch (err) {
+
+      return {
+        ok: true,
+        network,
+      };
+    } catch (error) {
       showToast({
-        kind: 'error',
-        message: err?.message ?? 'Échec de la réinitialisation.',
+        kind: "error",
+        message:
+          error?.message ??
+          "Échec de la réinitialisation.",
       });
-      return { ok: false, error: err };
+
+      return {
+        ok: false,
+        error,
+      };
     }
   }, [patch, showToast]);
 
-  /* ------------------------------------------------------------------ */
-  /* Auto-play — moteur d'exécution automatique                          */
-  /* ------------------------------------------------------------------ */
+  // ---------------------------------------------------------------------------
+  // Auto-play
+  // ---------------------------------------------------------------------------
+
+  const autoPlayFire = useCallback(
+    (transitionId) =>
+      fire(transitionId, {
+        silent: true,
+      }),
+    [fire]
+  );
+
   useAutoPlay({
     isPlaying,
     enabled: state.enabled,
-    fire,
+    fire: autoPlayFire,
     rate,
     lastFiredRef,
   });
 
-  const play = useCallback(() => setIsPlaying(true), []);
-  const pause = useCallback(() => setIsPlaying(false), []);
+  // ---------------------------------------------------------------------------
+  // Contrôles Play / Pause / Step
+  // ---------------------------------------------------------------------------
 
-  /* Step : avance d'une seule transition (hors boucle) */
+  const play = useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+
+  const pause = useCallback(() => {
+    setIsPlaying(false);
+  }, []);
+
   const step = useCallback(async () => {
-    const { CYCLE } = await import('../hooks/useAutoPlay.js');
-    const startIdx = lastFiredRef.current
+    const { CYCLE } = await import(
+      "../hooks/useAutoPlay.js"
+    );
+
+    const startIndex = lastFiredRef.current
       ? CYCLE.indexOf(lastFiredRef.current) + 1
       : 0;
-    for (let i = 0; i < CYCLE.length; i++) {
-      const idx = (startIdx + i) % CYCLE.length;
-      const tid = CYCLE[idx];
-      if ((state.enabled ?? []).includes(tid)) {
-        lastFiredRef.current = tid;
-        await fire(tid);
+
+    for (let i = 0; i < CYCLE.length; i += 1) {
+      const index =
+        (startIndex + i) % CYCLE.length;
+
+      const transitionId = CYCLE[index];
+
+      if (
+        (state.enabled ?? []).includes(
+          transitionId
+        )
+      ) {
+        await fire(transitionId);
         return;
       }
     }
-  }, [state.enabled, fire]);
 
-  /* ------------------------------------------------------------------ */
-  /* API publique                                                        */
-  /* ------------------------------------------------------------------ */
+    /**
+     * Aucun élément du cycle n'est actuellement activé.
+     * On force une synchronisation afin que le frontend
+     * ne reste pas sur une liste périmée.
+     */
+    try {
+      await refreshNetwork();
+    } catch {
+      // L'erreur éventuelle est déjà gérée dans refreshNetwork().
+    }
+  }, [state.enabled, fire, refreshNetwork]);
+
+  // ---------------------------------------------------------------------------
+  // API publique du contexte
+  // ---------------------------------------------------------------------------
+
   const value = {
     ...state,
+
     fire,
     inject,
     reset,
+
     reload,
     refreshNetwork,
+
     showToast,
     dismissToast,
+
     lastEmergency,
-    /* Auto-play */
+
     isPlaying,
     play,
     pause,
@@ -390,14 +704,20 @@ export function NetworkProvider({ children }) {
   };
 
   return (
-    <NetworkContext.Provider value={value}>{children}</NetworkContext.Provider>
+    <NetworkContext.Provider value={value}>
+      {children}
+    </NetworkContext.Provider>
   );
 }
 
 export function useNetwork() {
-  const ctx = useContext(NetworkContext);
-  if (!ctx) {
-    throw new Error('useNetwork doit être utilisé dans <NetworkProvider>.');
+  const context = useContext(NetworkContext);
+
+  if (!context) {
+    throw new Error(
+      "useNetwork doit être utilisé dans <NetworkProvider>."
+    );
   }
-  return ctx;
+
+  return context;
 }

@@ -1,117 +1,329 @@
 /**
- * Layout du graphe Petri — positions fixes sur le canvas SVG (v3).
+ * Layout du graphe Petri — Carrefour Intelligent
+ * Version UI/UX v4
  *
- * Canvas logique : 1080 × 680
+ * Philosophie :
+ *   - lecture de gauche → droite pour les flux principaux ;
+ *   - deux cycles de feux parfaitement alignés ;
+ *   - timer comme hub central, mais visuellement secondaire ;
+ *   - files à gauche ;
+ *   - urgences à droite ;
+ *   - piétons isolés dans une zone inférieure ;
+ *   - marges suffisantes pour éviter l'effet "graphe comprimé".
  *
- * Organisation en 5 zones :
- *   ┌────────────┬──────────────────────┬──────────────┐
- *   │  FILES     │   CYCLE DES FEUX     │   URGENCE    │
- *   │  (gauche)  │      (centre)        │   (droite)   │
- *   │            │                      │              │
- *   │  P7   P8   │  P1→T1→P2→T2→P3→T3  │  P13_NS      │
- *   │  P16  P17  │  P4→T4→P5→T5→P6→T6  │  P13_EO      │
- *   │            │                      │              │
- *   │            │   P15 (timer, hub)   │              │
- *   ├────────────┴──────────────────────┴──────────────┤
- *   │                PIÉTON (bas)                       │
- *   │                P9 → T9 → P10 → T10                │
- *   └───────────────────────────────────────────────────┘
+ * Canvas logique : 1200 × 760
+ *
+ * Organisation :
+ *
+ *   ┌──────────────┬──────────────────────────────────┬────────────────────┐
+ *   │    FILES     │          CYCLE DES FEUX          │      URGENCES      │
+ *   │              │                                  │                    │
+ *   │ P7 → T7      │ P1 → T1 → P2 → T2 → P3          │ P13_NS → T13 → P14 │
+ *   │ P8 → T8      │                                  │                    │
+ *   │ P16 → T17    │ P4 → T4 → P5 → T5 → P6          │ P13_EO → T13 → P14 │
+ *   │ P17 → T18    │                                  │                    │
+ *   │              │              P15                 │                    │
+ *   ├──────────────┴──────────────────────────────────┴────────────────────┤
+ *   │                         PIÉTON / TRAVERSÉE                           │
+ *   │                     P9 → T9 → P10 → T10                              │
+ *   └──────────────────────────────────────────────────────────────────────┘
  */
 
-/* ------------------------------------------------------------------ */
-/* Dimensions du canvas                                                */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Dimensions du canvas
+// ---------------------------------------------------------------------------
+
 export const VIEWBOX = {
-  width: 1080,
-  height: 680,
+  width: 1200,
+  height: 760,
 };
 
-/* ------------------------------------------------------------------ */
-/* Dimensions des éléments                                             */
-/* ------------------------------------------------------------------ */
-export const PLACE_RADIUS = 18;
-export const PLACE_RADIUS_HUB = 22;
-export const TOKEN_RADIUS = 3;
+// ---------------------------------------------------------------------------
+// Marges et zones
+// ---------------------------------------------------------------------------
 
-export const TRANSITION_WIDTH = 8;
-export const TRANSITION_HEIGHT = 30;
+export const GRAPH_PADDING = {
+  top: 60,
+  right: 50,
+  bottom: 50,
+  left: 50,
+};
 
-export const PLACE_LABEL_OFFSET = 28;
+export const GRAPH_ZONES = {
+  queues: {
+    x: 60,
+    width: 260,
+  },
 
-/* ------------------------------------------------------------------ */
-/* POSITIONS DES PLACES                                                */
-/* ------------------------------------------------------------------ */
+  lights: {
+    x: 340,
+    width: 560,
+  },
+
+  emergency: {
+    x: 920,
+    width: 230,
+  },
+
+  pedestrian: {
+    y: 570,
+    height: 140,
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Dimensions des éléments
+// ---------------------------------------------------------------------------
+
+export const PLACE_RADIUS = 19;
+
+export const PLACE_RADIUS_HUB = 23;
+
+export const TOKEN_RADIUS = 3.2;
+
+export const TRANSITION_WIDTH = 9;
+
+export const TRANSITION_HEIGHT = 34;
+
+export const PLACE_LABEL_OFFSET = 30;
+
+// ---------------------------------------------------------------------------
+// Axes visuels
+// ---------------------------------------------------------------------------
+
+export const GRAPH_LANES = {
+  NS: 145,
+  EO: 405,
+  PEDESTRIAN: 650,
+};
+
+// ---------------------------------------------------------------------------
+// POSITIONS DES PLACES
+// ---------------------------------------------------------------------------
+
 export const PLACE_POSITIONS = {
-  /* ---- CYCLE DES FEUX NS (ligne haute, x croissant) ---- */
-  P1: { x: 360, y: 100 }, // Feu NS vert
-  P2: { x: 540, y: 100 }, // Feu NS orange
-  P3: { x: 720, y: 100 }, // Feu NS rouge
+  // -------------------------------------------------------------------------
+  // CYCLE NS
+  // -------------------------------------------------------------------------
 
-  /* ---- CYCLE DES FEUX EO (ligne basse) ---- */
-  P4: { x: 360, y: 340 }, // Feu EO vert
-  P5: { x: 540, y: 340 }, // Feu EO orange
-  P6: { x: 720, y: 340 }, // Feu EO rouge
+  P1: { x: 420, y: GRAPH_LANES.NS },
+  P2: { x: 600, y: GRAPH_LANES.NS },
+  P3: { x: 780, y: GRAPH_LANES.NS },
 
-  /* ---- HUB central (timer) ---- */
-  P15: { x: 540, y: 220 }, // Timer cycle
+  // -------------------------------------------------------------------------
+  // CYCLE EO
+  // -------------------------------------------------------------------------
 
-  /* ---- FILES D'ATTENTE (colonne gauche) ---- */
-  P7: { x: 100, y: 100 }, // File NS Nord  (↓)
-  P8: { x: 100, y: 220 }, // File EO Ouest (→)
-  P16: { x: 100, y: 340 }, // File NS Sud   (↑)
-  P17: { x: 100, y: 460 }, // File EO Est   (←)
+  P4: { x: 420, y: GRAPH_LANES.EO },
+  P5: { x: 600, y: GRAPH_LANES.EO },
+  P6: { x: 780, y: GRAPH_LANES.EO },
 
-  /* ---- PIÉTON (bas, sous le cycle) ---- */
-  P9: { x: 360, y: 540 }, // Appel piéton
-  P10: { x: 540, y: 540 }, // Traversée piéton
+  // -------------------------------------------------------------------------
+  // HUB TIMER
+  //
+  // Placé exactement entre les deux axes pour montrer qu'il
+  // coordonne le cycle sans devenir l'élément principal.
+  // -------------------------------------------------------------------------
 
-  /* ---- URGENCE (colonne droite) ---- */
-  P13_NS: { x: 900, y: 160 }, // Balise urgence NS
-  P14_NS: { x: 900, y: 260 }, // Préemption NS active
-  P13_EO: { x: 900, y: 400 }, // Balise urgence EO
-  P14_EO: { x: 900, y: 500 }, // Préemption EO active
+  P15: { x: 600, y: 275 },
+
+  // -------------------------------------------------------------------------
+  // FILES D'ATTENTE
+  //
+  // Alignées sur une colonne dédiée à gauche.
+  // -------------------------------------------------------------------------
+
+  P7: { x: 120, y: GRAPH_LANES.NS },
+
+  P8: { x: 120, y: 275 },
+
+  P16: { x: 120, y: GRAPH_LANES.EO },
+
+  P17: { x: 120, y: 535 },
+
+  // -------------------------------------------------------------------------
+  // PIÉTON
+  // -------------------------------------------------------------------------
+
+  P9: {
+    x: 440,
+    y: GRAPH_LANES.PEDESTRIAN,
+  },
+
+  P10: {
+    x: 620,
+    y: GRAPH_LANES.PEDESTRIAN,
+  },
+
+  // -------------------------------------------------------------------------
+  // URGENCE NS
+  //
+  // Lecture gauche → droite :
+  // détection → préemption → fin
+  // -------------------------------------------------------------------------
+
+  P13_NS: { x: 955, y: 145 },
+
+  P14_NS: { x: 1080, y: 145 },
+
+  // -------------------------------------------------------------------------
+  // URGENCE EO
+  // -------------------------------------------------------------------------
+
+  P13_EO: { x: 955, y: 405 },
+
+  P14_EO: { x: 1080, y: 405 },
 };
 
-/* ------------------------------------------------------------------ */
-/* POSITIONS DES TRANSITIONS                                           */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// POSITIONS DES TRANSITIONS
+// ---------------------------------------------------------------------------
+
 export const TRANSITION_POSITIONS = {
-  /* ---- Cycle NS : T1 (P1→P2), T2 (P2→P3), T3 (P3→P1) ---- */
-  T1: { x: 450, y: 100 },
-  T2: { x: 630, y: 100 },
-  T3: { x: 810, y: 100 }, // boucle retour P3 → P1
+  // -------------------------------------------------------------------------
+  // CYCLE NS
+  // -------------------------------------------------------------------------
 
-  /* ---- Cycle EO : T4 (P4→P5), T5 (P5→P6), T6 (P6→P4) ---- */
-  T4: { x: 450, y: 340 },
-  T5: { x: 630, y: 340 },
-  T6: { x: 810, y: 340 }, // boucle retour P6 → P4
+  T1: {
+    x: 510,
+    y: GRAPH_LANES.NS,
+  },
 
-  /* ---- Timer (P15 hub) ---- */
-  T15: { x: 540, y: 150 }, // tick (au-dessus de P15)
-  T16: { x: 540, y: 290 }, // reset (en dessous de P15)
+  T2: {
+    x: 690,
+    y: GRAPH_LANES.NS,
+  },
 
-  /* ---- Files → timer ---- */
-  T7: { x: 220, y: 130 }, // File NS Nord → P15
-  T8: { x: 220, y: 220 }, // File EO Ouest → P15
-  T17: { x: 220, y: 340 }, // File NS Sud → P15
-  T18: { x: 220, y: 460 }, // File EO Est → P15
+  /**
+   * Transition de retour P3 → P1.
+   *
+   * Elle est volontairement placée sous P3 afin que le retour
+   * puisse être dessiné avec une courbe plutôt qu'une ligne
+   * diagonale qui traverserait tout le graphe.
+   */
+  T3: {
+    x: 780,
+    y: 215,
+  },
 
-  /* ---- Piéton ---- */
-  T9: { x: 450, y: 540 }, // Appel → Traversée
-  T10: { x: 630, y: 540 }, // Fin traversée
+  // -------------------------------------------------------------------------
+  // CYCLE EO
+  // -------------------------------------------------------------------------
 
-  /* ---- Urgence NS ---- */
-  T13_NS: { x: 900, y: 210 }, // Balise NS → Préemption NS
-  T14_NS: { x: 1000, y: 210 }, // Fin préemption NS
+  T4: {
+    x: 510,
+    y: GRAPH_LANES.EO,
+  },
 
-  /* ---- Urgence EO ---- */
-  T13_EO: { x: 900, y: 450 }, // Balise EO → Préemption EO
-  T14_EO: { x: 1000, y: 450 }, // Fin préemption EO
+  T5: {
+    x: 690,
+    y: GRAPH_LANES.EO,
+  },
+
+  /**
+   * Retour P6 → P4.
+   */
+  T6: {
+    x: 780,
+    y: 475,
+  },
+
+  // -------------------------------------------------------------------------
+  // TIMER
+  // -------------------------------------------------------------------------
+
+  /**
+   * T15 est placé au-dessus du hub.
+   *
+   * Visuellement :
+   *
+   *       T15
+   *        ↓
+   *       P15
+   *        ↓
+   *       T16
+   */
+  T15: {
+    x: 600,
+    y: 220,
+  },
+
+  T16: {
+    x: 600,
+    y: 330,
+  },
+
+  // -------------------------------------------------------------------------
+  // FILES NS / EO
+  // -------------------------------------------------------------------------
+
+  T7: {
+    x: 230,
+    y: GRAPH_LANES.NS,
+  },
+
+  T8: {
+    x: 230,
+    y: 275,
+  },
+
+  T17: {
+    x: 230,
+    y: GRAPH_LANES.EO,
+  },
+
+  T18: {
+    x: 230,
+    y: 535,
+  },
+
+  // -------------------------------------------------------------------------
+  // PIÉTON
+  // -------------------------------------------------------------------------
+
+  T9: {
+    x: 530,
+    y: GRAPH_LANES.PEDESTRIAN,
+  },
+
+  T10: {
+    x: 710,
+    y: GRAPH_LANES.PEDESTRIAN,
+  },
+
+  // -------------------------------------------------------------------------
+  // URGENCE NS
+  // -------------------------------------------------------------------------
+
+  T13_NS: {
+    x: 1015,
+    y: 145,
+  },
+
+  T14_NS: {
+    x: 1140,
+    y: 145,
+  },
+
+  // -------------------------------------------------------------------------
+  // URGENCE EO
+  // -------------------------------------------------------------------------
+
+  T13_EO: {
+    x: 1015,
+    y: 405,
+  },
+
+  T14_EO: {
+    x: 1140,
+    y: 405,
+  },
 };
 
-/* ------------------------------------------------------------------ */
-/* HELPERS                                                             */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// HELPERS
+// ---------------------------------------------------------------------------
+
 export function getPlacePosition(placeId) {
   return PLACE_POSITIONS[placeId] ?? null;
 }

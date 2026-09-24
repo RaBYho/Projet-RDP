@@ -17,11 +17,19 @@ const EMERGENCIES = [
   { event: 'urgence_e', label: 'E', icon: 'west',  tooltip: 'Urgence sortant de l\'hôpital' },
 ];
 
+/* Capacité maximale de P15 (Timer cycle) — utilisé pour le seuil du bouton Reset cycle */
+const P15_MAX = 12;
+
 export default function ControlPanel() {
   const { rate, setRate } = useUi();
-  const { inject, reset, loading, error, isPlaying, play, pause, step } = useNetwork();
+  const { inject, fire, reset, loading, error, isPlaying, play, pause, step, network } = useNetwork();
 
   const isDisabled = loading || Boolean(error);
+
+  /* Compteur de cycle P15 — condition d'activation du bouton "Reset cycle" */
+  const p15 = network?.marking_vector?.P15 ?? 0;
+  const cycleComplete = p15 >= P15_MAX;
+  const canResetCycle = !isDisabled && cycleComplete;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 h-16 z-40 bg-surface-panel border-t border-border shadow-[0_-1px_3px_0_rgba(0,0,0,0.04)]">
@@ -94,7 +102,53 @@ export default function ControlPanel() {
             ))}
           </div>
 
-          {/* Reset */}
+          {/* ============================================================ */}
+          {/* Bouton Reset cycle (T16) — actif quand P15 = 12               */}
+          {/* ============================================================ */}
+          <button
+            type="button"
+            disabled={!canResetCycle}
+            onClick={() => fire('T16')}
+            title={
+              cycleComplete
+                ? 'Réinitialiser le cycle (P15 est plein)'
+                : `Cycle en cours (${p15}/${P15_MAX})`
+            }
+            className={[
+              'group flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-md',
+              'text-label-md font-medium whitespace-nowrap',
+              'transition-all duration-200 ease-out',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              'active:scale-[0.97]',
+              cycleComplete
+                ? 'bg-primary-soft text-primary hover:bg-primary hover:text-white shadow-sm'
+                : 'bg-surface-muted text-ink-muted opacity-60 cursor-not-allowed',
+            ].join(' ')}
+          >
+            <Icon
+              name="restart_alt"
+              size={16}
+              className={[
+                'transition-transform duration-300 ease-out',
+                canResetCycle && 'group-hover:-rotate-180',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            />
+            <span className="hidden lg:inline">Reset cycle</span>
+            <span
+              className={[
+                'font-mono text-badge-mono tabular-nums px-1 py-0.5 rounded',
+                cycleComplete
+                  ? 'bg-primary text-white'
+                  : 'bg-surface-panel text-ink-caption',
+              ].join(' ')}
+            >
+              {p15}/{P15_MAX}
+            </span>
+          </button>
+
+          {/* Reset M₀ */}
           <button
             type="button"
             disabled={isDisabled}

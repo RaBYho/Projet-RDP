@@ -1,58 +1,52 @@
 import { useEffect, useRef } from "react";
-
-/* Cycle complet incluant les files et les feux.
-   Les transitions non-enabled sont automatiquement sautées
-   (voir selectNextTransition). */
-const CYCLE = [
-  "T1", // NS vert → orange
-  "T7", // File NS Nord traverse
-  "T2", // NS orange → rouge
-  "T17", // File NS Sud traverse
-  "T6", // EO rouge → vert
-  "T8", // File EO Ouest traverse
-  "T4", // EO vert → orange
-  "T18", // File EO Est traverse
-  "T5", // EO orange → rouge
-  "T3", // NS rouge → vert
-];
-
-/* Intervalle de base en ms (modulé par le rate). */
+/** * Auto-play du Carrefour Intelligent. * * Le backend reste la source de vérité : * - `enabled` = transitions réellement franchissables * - `fire()` = tentative réelle de tir côté backend * * Cycle normal : * T7 → passage NS Nord * T17 → passage NS Sud * T1 → NS vert → orange * T2 → NS orange → rouge + EO vert * T8 → passage EO Ouest * T18 → passage EO Est * T4 → EO vert → orange * T5 → EO orange → rouge + NS vert * * T3 et T6 sont volontairement absentes du cycle normal. */ export const CYCLE =
+  ["T7", "T17", "T1", "T2", "T8", "T18", "T4", "T5"];
 const BASE_INTERVAL_MS = 1200;
-
-/**
- * Sélectionne la prochaine transition à tirer dans le cycle.
- * Cherche, à partir de la position de `lastFired`, la première
- * transition enabled dans l'ordre du cycle.
- */
-function selectNextTransition(enabled, lastFired) {
-  const startIdx = lastFired ? CYCLE.indexOf(lastFired) + 1 : 0;
-
-  for (let i = 0; i < CYCLE.length; i++) {
-    const idx = (startIdx + i) % CYCLE.length;
-    const tid = CYCLE[idx];
-    if (enabled.includes(tid)) return tid;
+const INITIAL_DELAY_MS = 300;
+const IDLE_INTERVAL_MS = 500;
+/** * Sélectionne la prochaine transition du cycle actuellement activée. * * @param {string[]} enabled * @param {string|null} lastFired * @returns {string|null} */ function selectNextTransition(
+  enabled,
+  lastFired,
+) {
+  if (!Array.isArray(enabled) || enabled.length === 0) {
+    return null;
+  }
+  const enabledSet = new Set(enabled);
+  let startIndex = 0;
+  if (lastFired) {
+    const previousIndex = CYCLE.indexOf(lastFired);
+    if (previousIndex >= 0) {
+      startIndex = (previousIndex + 1) % CYCLE.length;
+    }
+  }
+  for (let i = 0; i < CYCLE.length; i += 1) {
+    const index = (startIndex + i) % CYCLE.length;
+    const transitionId = CYCLE[index];
+    if (enabledSet.has(transitionId)) {
+      return transitionId;
+    }
   }
   return null;
 }
-
-/**
- * useAutoPlay — moteur d'exécution automatique du cycle des feux.
- *
- * @param {boolean}  isPlaying
- * @param {string[]} enabled   - transitions franchissables actuelles
- * @param {Function} fire      - fonction (tid) => Promise
- * @param {number}   rate      - multiplicateur de vitesse (0.1 à 5)
- * @param {Object}   ref       - { current: lastFiredId } pour persister entre ticks
- */
+/** * Calcule l'intervalle entre deux tentatives. */ function getInterval(
+  rate,
+  idle = false,
+) {
+  if (idle) {
+    return IDLE_INTERVAL_MS;
+  }
+  const numericRate = Number(rate);
+  if (!Number.isFinite(numericRate) || numericRate <= 0) {
+    return BASE_INTERVAL_MS;
+  }
+  return Math.max(100, BASE_INTERVAL_MS / numericRate);
+}
 export function useAutoPlay({ isPlaying, enabled, fire, rate, lastFiredRef }) {
-  /* On garde `enabled`, `fire` et `rate` dans des refs pour que
-     l'intervalle n'ait pas besoin d'être recréé à chaque changement. */
   const enabledRef = useRef(enabled);
   const fireRef = useRef(fire);
   const rateRef = useRef(rate);
-
   useEffect(() => {
-    enabledRef.current = enabled;
+    enabledRef.current = Array.isArray(enabled) ? enabled : [];
   }, [enabled]);
   useEffect(() => {
     fireRef.current = fire;
@@ -60,43 +54,62 @@ export function useAutoPlay({ isPlaying, enabled, fire, rate, lastFiredRef }) {
   useEffect(() => {
     rateRef.current = rate;
   }, [rate]);
-
   useEffect(() => {
-    if (!isPlaying) return;
-
+    if (!isPlaying) {
+      return undefined;
+    }
     let cancelled = false;
     let timeoutId = null;
-
-    const tick = async () => {
-      if (cancelled) return;
-
-      const list = enabledRef.current ?? [];
-      const last = lastFiredRef.current;
-      const next = selectNextTransition(list, last);
-
-      if (next) {
-        lastFiredRef.current = next;
-        try {
-          await fireRef.current(next);
-        } catch {
-          /* Silencieux : la boucle continue, l'erreur est déjà toastée */
-        }
+    /** * Boucle principale. * * Fonction déclarée avant `scheduleNext` afin d'éviter * l'erreur "tick was used before it was declared". */ async function tick() {
+      if (cancelled) {
+        return;
       }
-
-      if (cancelled) return;
-
-      const interval = BASE_INTERVAL_MS / (rateRef.current || 1);
-      timeoutId = setTimeout(tick, interval);
-    };
-
-    /* Premier tick après un court délai (pour laisser le temps au refresh) */
-    timeoutId = setTimeout(tick, 300);
-
+      const currentEnabled = enabledRef.current ?? [];
+      const lastFired = lastFiredRef.current ?? null;
+      const nextTransition = selectNextTransition(currentEnabled, lastFired);
+      /** * Aucune transition du cycle n'est actuellement disponible. * * Exemple normal : * T1 vient de mettre NS en orange, * donc T2 reste bloquée pendant la durée minimale de l'orange. */ if (
+        !nextTransition
+      ) {
+        scheduleNext(getInterval(rateRef.current, true));
+        return;
+      }
+      let result;
+      try {
+        result = await fireRef.current(nextTransition, { silent: true });
+      } catch {
+        result = { ok: false };
+      }
+      if (cancelled) {
+        return;
+      }
+      /** * On mémorise uniquement une transition réellement tirée. */ if (
+        result?.ok === true
+      ) {
+        lastFiredRef.current = nextTransition;
+      }
+      /** * En cas d'échec, on attend plus longtemps pour éviter * une rafale de requêtes HTTP. */ scheduleNext(
+        getInterval(rateRef.current, result?.ok !== true),
+      );
+    }
+    /** * Programme le prochain appel de `tick`. * * `tick` est maintenant déjà déclaré lorsque cette fonction * peut réellement être exécutée. */ function scheduleNext(
+      delay,
+    ) {
+      if (cancelled) {
+        return;
+      }
+      timeoutId = window.setTimeout(tick, delay);
+    }
+    /** * Premier tick après un court délai. */ timeoutId = window.setTimeout(
+      tick,
+      INITIAL_DELAY_MS,
+    );
     return () => {
       cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
     };
   }, [isPlaying, lastFiredRef]);
 }
-
-export { CYCLE };
+export { selectNextTransition };
